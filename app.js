@@ -6,7 +6,13 @@ let contratos = [];
 let obligacionesActuales = [];
 let informesActuales = [];
 let obligacionesParaInforme = [];
+let actividadesActuales = [];
+let informeSeleccionado = null;
+let obligacionSeleccionadaParaActividad = null;
 let contratoSeleccionado = null;
+let actividadSeleccionadaParaArchivos = null;
+let archivosActividadActuales = [];
+let archivoPegado = null;
 
 const $ = (selector) => document.querySelector(selector);
 
@@ -74,6 +80,53 @@ const elements = {
   btnCloseReportsFooter: $("#btnCloseReportsFooter"),
   btnClearReport: $("#btnClearReport"),
   btnReloadReports: $("#btnReloadReports"),
+  activitiesDialog: $("#activitiesDialog"),
+  activitiesTitle: $("#activitiesTitle"),
+  activitiesSubtitle: $("#activitiesSubtitle"),
+  activitiesCount: $("#activitiesCount"),
+  activitiesNestedList: $("#activitiesNestedList"),
+  activitiesEmpty: $("#activitiesEmpty"),
+  activitiesLoading: $("#activitiesLoading"),
+  activityForm: $("#activityForm"),
+  activityFormTitle: $("#activityFormTitle"),
+  activityContext: $("#activityContext"),
+  activityId: $("#activityId"),
+  activityObligationId: $("#activityObligationId"),
+  activityObligationLabel: $("#activityObligationLabel"),
+  actividadCodigo: $("#actividad_codigo"),
+  actividadFecha: $("#actividad_fecha"),
+  actividadTitulo: $("#actividad_titulo"),
+  actividadDescripcion: $("#actividad_descripcion"),
+  actividadTipo: $("#actividad_tipo"),
+  actividadLugar: $("#actividad_lugar"),
+  actividadEntidades: $("#actividad_entidades"),
+  actividadObservaciones: $("#actividad_observaciones"),
+  btnCloseActivities: $("#btnCloseActivities"),
+  btnCloseActivitiesFooter: $("#btnCloseActivitiesFooter"),
+  btnBackToReports: $("#btnBackToReports"),
+  btnClearActivity: $("#btnClearActivity"),
+  btnReloadActivities: $("#btnReloadActivities"),
+  filesDialog: $("#filesDialog"),
+  filesTitle: $("#filesTitle"),
+  filesSubtitle: $("#filesSubtitle"),
+  fileForm: $("#fileForm"),
+  fileFormTitle: $("#fileFormTitle"),
+  fileItemId: $("#fileItemId"),
+  archivoCategoria: $("#archivo_categoria"),
+  archivoDescripcion: $("#archivo_descripcion"),
+  archivoOrden: $("#archivo_orden"),
+  archivoFile: $("#archivo_file"),
+  pasteZone: $("#pasteZone"),
+  pasteFileName: $("#pasteFileName"),
+  filePreview: $("#filePreview"),
+  filesCount: $("#filesCount"),
+  filesList: $("#filesList"),
+  filesEmpty: $("#filesEmpty"),
+  filesLoading: $("#filesLoading"),
+  btnCloseFiles: $("#btnCloseFiles"),
+  btnCloseFilesFooter: $("#btnCloseFilesFooter"),
+  btnClearFile: $("#btnClearFile"),
+  btnReloadFiles: $("#btnReloadFiles"),
   pageTitle: $("#pageTitle"),
   pageSubtitle: $("#pageSubtitle"),
 };
@@ -129,7 +182,8 @@ function clearTokens() {
 
 async function api(path, options = {}) {
   const headers = new Headers(options.headers || {});
-  if (!headers.has("Content-Type") && options.body) headers.set("Content-Type", "application/json");
+  const isFormData = typeof FormData !== "undefined" && options.body instanceof FormData;
+  if (!headers.has("Content-Type") && options.body && !isFormData) headers.set("Content-Type", "application/json");
   if (accessToken) headers.set("Authorization", `Bearer ${accessToken}`);
 
   const response = await fetch(`${DIRECTUS_URL}${path}`, { ...options, headers });
@@ -593,6 +647,7 @@ function renderReports() {
         <p><span class="badge">${escapeHtml(item.estado || "borrador")}</span></p>
       </div>
       <div class="card-actions">
+        <button class="btn btn-primary" data-report-action="open" data-id="${item.id}">Abrir informe</button>
         <button class="btn btn-light" data-report-action="edit" data-id="${item.id}">Editar</button>
         <button class="btn btn-danger" data-report-action="delete" data-id="${item.id}">Eliminar</button>
       </div>
@@ -688,6 +743,413 @@ async function deleteReport(id) {
   }
 }
 
+
+function setActivitiesLoading(isLoading) {
+  elements.activitiesLoading.classList.toggle("oculto", !isLoading);
+}
+
+function activityLabel(item) {
+  return item.titulo || item.codigo || dateShort(item.fecha_actividad) || "Actividad";
+}
+
+function resetActivityForm() {
+  elements.activityForm.reset();
+  elements.activityId.value = "";
+  elements.activityObligationId.value = "";
+  elements.activityObligationLabel.value = "";
+  elements.activityFormTitle.textContent = "Nueva actividad";
+  elements.activityContext.textContent = "Selecciona una obligación desde el panel derecho.";
+  obligacionSeleccionadaParaActividad = null;
+}
+
+function selectObligationForActivity(obligationId) {
+  const item = obligacionesParaInforme.find((ob) => ob.id === obligationId);
+  if (!item) return;
+  obligacionSeleccionadaParaActividad = item;
+  elements.activityId.value = "";
+  elements.activityObligationId.value = item.id;
+  elements.activityObligationLabel.value = `${obligationLabel(item)} - ${(item.descripcion || "").slice(0, 80)}`;
+  elements.activityFormTitle.textContent = `Nueva actividad para ${obligationLabel(item)}`;
+  elements.activityContext.textContent = `Informe: ${reportLabel(informeSeleccionado || {})}`;
+  elements.actividadCodigo.focus();
+}
+
+function editActivity(activityId) {
+  const item = actividadesActuales.find((act) => act.id === activityId);
+  if (!item) return;
+  const obligationId = typeof item.obligacion_id === "object" ? item.obligacion_id?.id : item.obligacion_id;
+  const obligation = obligacionesParaInforme.find((ob) => ob.id === obligationId);
+  obligacionSeleccionadaParaActividad = obligation || null;
+
+  elements.activityFormTitle.textContent = `Editar ${activityLabel(item)}`;
+  elements.activityId.value = item.id;
+  elements.activityObligationId.value = obligationId || "";
+  elements.activityObligationLabel.value = obligation
+    ? `${obligationLabel(obligation)} - ${(obligation.descripcion || "").slice(0, 80)}`
+    : "Obligación no encontrada";
+  elements.actividadCodigo.value = item.codigo || "";
+  elements.actividadFecha.value = dateShort(item.fecha_actividad);
+  elements.actividadTitulo.value = item.titulo || "";
+  elements.actividadDescripcion.value = item.descripcion || "";
+  elements.actividadTipo.value = item.tipo_actividad || "";
+  elements.actividadLugar.value = item.lugar || "";
+  elements.actividadEntidades.value = item.entidades || "";
+  elements.actividadObservaciones.value = item.observaciones || "";
+  elements.actividadCodigo.focus();
+}
+
+async function openActivitiesManager(reportId) {
+  const report = informesActuales.find((item) => item.id === reportId);
+  if (!report || !contratoSeleccionado?.id) return;
+
+  informeSeleccionado = report;
+  actividadesActuales = [];
+  resetActivityForm();
+
+  elements.activitiesTitle.textContent = `Informe: ${reportLabel(report)}`;
+  elements.activitiesSubtitle.textContent = `${contratoSeleccionado.numero_contrato || "Contrato"}${contratoSeleccionado.entidad ? " · " + contratoSeleccionado.entidad : ""}`;
+  elements.activitiesDialog.showModal();
+  await loadActivitiesNested();
+}
+
+async function loadActivitiesNested() {
+  if (!informeSeleccionado?.id || !contratoSeleccionado?.id) return;
+  setActivitiesLoading(true);
+
+  try {
+    const obligationsParams = new URLSearchParams({
+      "filter[contrato_id][_eq]": contratoSeleccionado.id,
+      fields: "id,numero,descripcion",
+      sort: "numero",
+      limit: "200",
+    });
+    const activitiesParams = new URLSearchParams({
+      "filter[informe_id][_eq]": informeSeleccionado.id,
+      fields: "id,informe_id,obligacion_id,codigo,fecha_actividad,titulo,descripcion,tipo_actividad,lugar,entidades,observaciones,created_at",
+      sort: "obligacion_id,fecha_actividad,created_at",
+      limit: "500",
+    });
+
+    const [obligationsPayload, activitiesPayload] = await Promise.all([
+      api(`/items/obligaciones?${obligationsParams.toString()}`),
+      api(`/items/actividades?${activitiesParams.toString()}`),
+    ]);
+
+    obligacionesParaInforme = obligationsPayload.data || [];
+    actividadesActuales = activitiesPayload.data || [];
+    renderActivitiesNested();
+  } catch (error) {
+    console.error(error);
+    toast(`Error cargando el informe: ${error.message}`, "error");
+  } finally {
+    setActivitiesLoading(false);
+  }
+}
+
+function getActivityObligationId(activity) {
+  return typeof activity.obligacion_id === "object" ? activity.obligacion_id?.id : activity.obligacion_id;
+}
+
+function renderActivitiesNested() {
+  elements.activitiesNestedList.innerHTML = "";
+  elements.activitiesEmpty.classList.toggle("oculto", obligacionesParaInforme.length > 0);
+  elements.activitiesCount.textContent = `${actividadesActuales.length} actividad${actividadesActuales.length === 1 ? "" : "es"}`;
+
+  obligacionesParaInforme.forEach((obligation) => {
+    const activities = actividadesActuales.filter((act) => getActivityObligationId(act) === obligation.id);
+    const section = document.createElement("article");
+    section.className = "nested-obligation";
+    section.innerHTML = `
+      <div class="nested-obligation-header">
+        <div>
+          <strong>${escapeHtml(obligationLabel(obligation))}</strong>
+          <p>${escapeHtml(obligation.descripcion || "")}</p>
+        </div>
+        <button class="btn btn-primary" data-activity-action="new" data-obligation-id="${obligation.id}">+ Actividad</button>
+      </div>
+      <div class="activity-list">
+        ${activities.length ? activities.map((activity) => `
+          <div class="activity-card">
+            <div>
+              <strong>${escapeHtml(activityLabel(activity))}</strong>
+              <p class="muted">${escapeHtml(dateShort(activity.fecha_actividad))}${activity.tipo_actividad ? " · " + escapeHtml(activity.tipo_actividad) : ""}${activity.lugar ? " · " + escapeHtml(activity.lugar) : ""}</p>
+              <p>${escapeHtml(activity.descripcion || "")}</p>
+              ${activity.entidades ? `<p class="small-text"><strong>Entidades:</strong> ${escapeHtml(activity.entidades)}</p>` : ""}
+              ${activity.observaciones ? `<p class="small-text"><strong>Observaciones:</strong> ${escapeHtml(activity.observaciones)}</p>` : ""}
+            </div>
+            <div class="card-actions">
+              <button class="btn btn-light" data-activity-action="files" data-id="${activity.id}">Imágenes</button>
+              <button class="btn btn-light" data-activity-action="edit" data-id="${activity.id}">Editar</button>
+              <button class="btn btn-danger" data-activity-action="delete" data-id="${activity.id}">Eliminar</button>
+            </div>
+          </div>
+        `).join("") : `<div class="empty-inline">Sin actividades para esta obligación en este informe.</div>`}
+      </div>
+    `;
+    elements.activitiesNestedList.appendChild(section);
+  });
+}
+
+async function saveActivity(event) {
+  event.preventDefault();
+  if (!informeSeleccionado?.id) {
+    toast("Primero abre un informe mensual", "error");
+    return;
+  }
+
+  const activityId = elements.activityId.value;
+  const obligationId = elements.activityObligationId.value;
+  const descripcion = elements.actividadDescripcion.value.trim();
+
+  if (!obligationId) {
+    toast("Selecciona una obligación para agregar la actividad", "error");
+    return;
+  }
+  if (!descripcion) {
+    toast("La descripción de la actividad es obligatoria", "error");
+    return;
+  }
+
+  const body = {
+    informe_id: informeSeleccionado.id,
+    obligacion_id: obligationId,
+    codigo: elements.actividadCodigo.value.trim() || null,
+    fecha_actividad: elements.actividadFecha.value || null,
+    titulo: elements.actividadTitulo.value.trim() || null,
+    descripcion,
+    tipo_actividad: elements.actividadTipo.value.trim() || null,
+    lugar: elements.actividadLugar.value.trim() || null,
+    entidades: elements.actividadEntidades.value.trim() || null,
+    observaciones: elements.actividadObservaciones.value.trim() || null,
+  };
+
+  try {
+    if (activityId) {
+      await api(`/items/actividades/${activityId}`, { method: "PATCH", body: JSON.stringify(body) });
+      toast("Actividad actualizada");
+    } else {
+      await api("/items/actividades", { method: "POST", body: JSON.stringify(body) });
+      toast("Actividad creada");
+    }
+    resetActivityForm();
+    await loadActivitiesNested();
+  } catch (error) {
+    console.error(error);
+    toast(`No se pudo guardar la actividad: ${error.message}`, "error");
+  }
+}
+
+async function deleteActivity(activityId) {
+  const item = actividadesActuales.find((act) => act.id === activityId);
+  const ok = confirm(`¿Eliminar la actividad ${activityLabel(item || {})}?`);
+  if (!ok) return;
+
+  try {
+    await api(`/items/actividades/${activityId}`, { method: "DELETE" });
+    toast("Actividad eliminada");
+    await loadActivitiesNested();
+  } catch (error) {
+    console.error(error);
+    toast(`No se pudo eliminar la actividad: ${error.message}`, "error");
+  }
+}
+
+
+function setFilesLoading(isLoading) {
+  elements.filesLoading.classList.toggle("oculto", !isLoading);
+}
+
+function resetFileForm() {
+  elements.fileForm.reset();
+  elements.fileItemId.value = "";
+  elements.archivoCategoria.value = "cuerpo";
+  elements.archivoOrden.value = "1";
+  archivoPegado = null;
+  elements.pasteFileName.textContent = "Sin captura pegada";
+  elements.filePreview.innerHTML = "";
+  elements.filePreview.classList.add("oculto");
+  elements.fileFormTitle.textContent = "Agregar imagen";
+}
+
+function showFilePreview(file) {
+  elements.filePreview.innerHTML = "";
+  if (!file) {
+    elements.filePreview.classList.add("oculto");
+    return;
+  }
+  const info = document.createElement("p");
+  info.className = "small-text";
+  info.innerHTML = `<strong>${escapeHtml(file.name || "captura.png")}</strong><br>${escapeHtml(file.type || "archivo")} · ${Math.round((file.size || 0) / 1024)} KB`;
+  elements.filePreview.appendChild(info);
+
+  if ((file.type || "").startsWith("image/")) {
+    const img = document.createElement("img");
+    img.src = URL.createObjectURL(file);
+    img.onload = () => URL.revokeObjectURL(img.src);
+    img.alt = "Vista previa";
+    elements.filePreview.appendChild(img);
+  }
+
+  elements.filePreview.classList.remove("oculto");
+}
+
+function assetUrl(fileId) {
+  return `${DIRECTUS_URL}/assets/${fileId}`;
+}
+
+function getArchivoFileId(item) {
+  return typeof item.directus_file_id === "object" ? item.directus_file_id?.id : item.directus_file_id;
+}
+
+async function openFilesManager(activityId) {
+  const activity = actividadesActuales.find((act) => act.id === activityId);
+  if (!activity) return;
+
+  actividadSeleccionadaParaArchivos = activity;
+  archivosActividadActuales = [];
+  resetFileForm();
+  elements.filesTitle.textContent = `Imágenes: ${activityLabel(activity)}`;
+  elements.filesSubtitle.textContent = "Clasifica imágenes como encabezado, cuerpo, anexo o soporte para el futuro ayudamemoria.";
+  elements.filesDialog.showModal();
+  await loadActivityFiles();
+}
+
+async function loadActivityFiles() {
+  if (!actividadSeleccionadaParaArchivos?.id) return;
+  setFilesLoading(true);
+  try {
+    const params = new URLSearchParams({
+      "filter[actividad_id][_eq]": actividadSeleccionadaParaArchivos.id,
+      fields: "id,actividad_id,nombre_original,nombre_archivo,ruta,tipo_mime,categoria,descripcion,orden,directus_file_id,created_at",
+      sort: "categoria,orden,created_at",
+      limit: "200",
+    });
+    const payload = await api(`/items/archivos_actividad?${params.toString()}`);
+    archivosActividadActuales = payload.data || [];
+    renderActivityFiles();
+  } catch (error) {
+    console.error(error);
+    toast(`Error cargando archivos: ${error.message}`, "error");
+  } finally {
+    setFilesLoading(false);
+  }
+}
+
+function renderActivityFiles() {
+  elements.filesList.innerHTML = "";
+  elements.filesCount.textContent = `${archivosActividadActuales.length} archivo${archivosActividadActuales.length === 1 ? "" : "s"}`;
+  elements.filesEmpty.classList.toggle("oculto", archivosActividadActuales.length > 0);
+
+  archivosActividadActuales.forEach((item) => {
+    const fileId = getArchivoFileId(item);
+    const isImage = String(item.tipo_mime || "").startsWith("image/");
+    const article = document.createElement("article");
+    article.className = "file-card";
+    article.innerHTML = `
+      <div class="file-thumb">
+        ${fileId && isImage ? `<img src="${assetUrl(fileId)}" alt="${escapeHtml(item.nombre_original || "imagen")}">` : `<span>${escapeHtml((item.tipo_mime || "archivo").split("/").pop() || "archivo")}</span>`}
+      </div>
+      <div class="file-info">
+        <div class="file-meta">
+          <span class="badge">${escapeHtml(item.categoria || "cuerpo")}</span>
+          <span class="muted">Orden ${escapeHtml(item.orden ?? "1")}</span>
+        </div>
+        <strong>${escapeHtml(item.nombre_original || item.nombre_archivo || "Archivo")}</strong>
+        ${item.descripcion ? `<p>${escapeHtml(item.descripcion)}</p>` : ""}
+        <div class="card-actions">
+          ${fileId ? `<a class="btn btn-light" href="${assetUrl(fileId)}" target="_blank" rel="noopener">Ver</a>` : ""}
+          <button class="btn btn-danger" data-file-action="delete" data-id="${item.id}">Eliminar</button>
+        </div>
+      </div>
+    `;
+    elements.filesList.appendChild(article);
+  });
+}
+
+async function uploadToDirectus(file) {
+  const formData = new FormData();
+  formData.append("file", file, file.name || "captura.png");
+  const payload = await api("/files", { method: "POST", body: formData });
+  return payload.data;
+}
+
+async function saveActivityFile(event) {
+  event.preventDefault();
+  if (!actividadSeleccionadaParaArchivos?.id) {
+    toast("Primero selecciona una actividad", "error");
+    return;
+  }
+
+  const selectedFile = elements.archivoFile.files?.[0] || archivoPegado;
+  if (!selectedFile) {
+    toast("Selecciona una imagen o pega una captura", "error");
+    return;
+  }
+
+  try {
+    const uploaded = await uploadToDirectus(selectedFile);
+    const fileId = uploaded.id;
+    const originalName = uploaded.filename_download || selectedFile.name || "captura.png";
+
+    const body = {
+      actividad_id: actividadSeleccionadaParaArchivos.id,
+      directus_file_id: fileId,
+      nombre_original: originalName,
+      nombre_archivo: uploaded.filename_disk || originalName,
+      ruta: `/assets/${fileId}`,
+      tipo_mime: uploaded.type || selectedFile.type || null,
+      categoria: elements.archivoCategoria.value || "cuerpo",
+      descripcion: elements.archivoDescripcion.value.trim() || null,
+      orden: Number(elements.archivoOrden.value || 1),
+    };
+
+    await api("/items/archivos_actividad", { method: "POST", body: JSON.stringify(body) });
+    toast("Imagen guardada");
+    resetFileForm();
+    await loadActivityFiles();
+  } catch (error) {
+    console.error(error);
+    toast(`No se pudo guardar la imagen: ${error.message}`, "error");
+  }
+}
+
+async function deleteActivityFile(itemId) {
+  const item = archivosActividadActuales.find((file) => file.id === itemId);
+  const ok = confirm(`¿Eliminar el archivo ${item?.nombre_original || "seleccionado"}?`);
+  if (!ok) return;
+
+  try {
+    await api(`/items/archivos_actividad/${itemId}`, { method: "DELETE" });
+    const fileId = item ? getArchivoFileId(item) : null;
+    if (fileId) {
+      try { await api(`/files/${fileId}`, { method: "DELETE" }); } catch (error) { console.warn("No se pudo eliminar el archivo físico en Directus", error); }
+    }
+    toast("Archivo eliminado");
+    await loadActivityFiles();
+  } catch (error) {
+    console.error(error);
+    toast(`No se pudo eliminar el archivo: ${error.message}`, "error");
+  }
+}
+
+function handlePaste(event) {
+  const items = event.clipboardData?.items || [];
+  for (const item of items) {
+    if (item.type && item.type.startsWith("image/")) {
+      const blob = item.getAsFile();
+      if (!blob) continue;
+      const ext = item.type.split("/")[1] || "png";
+      archivoPegado = new File([blob], `captura-${Date.now()}.${ext}`, { type: item.type });
+      elements.archivoFile.value = "";
+      elements.pasteFileName.textContent = archivoPegado.name;
+      showFilePreview(archivoPegado);
+      toast("Captura pegada. Ahora puedes guardarla.");
+      event.preventDefault();
+      return;
+    }
+  }
+}
+
 function switchView(view) {
   document.querySelectorAll(".nav-item").forEach((btn) => btn.classList.toggle("activo", btn.dataset.view === view));
   $("#contratosView").classList.toggle("oculto", view !== "contratos");
@@ -718,6 +1180,24 @@ function attachEvents() {
   elements.btnReloadReports.addEventListener("click", () => Promise.all([loadReports(), loadReportObligations()]));
   elements.btnCloseReports.addEventListener("click", () => elements.reportsDialog.close());
   elements.btnCloseReportsFooter.addEventListener("click", () => elements.reportsDialog.close());
+  elements.activityForm.addEventListener("submit", saveActivity);
+  elements.btnClearActivity.addEventListener("click", resetActivityForm);
+  elements.btnReloadActivities.addEventListener("click", loadActivitiesNested);
+  elements.fileForm.addEventListener("submit", saveActivityFile);
+  elements.btnClearFile.addEventListener("click", resetFileForm);
+  elements.btnReloadFiles.addEventListener("click", loadActivityFiles);
+  elements.btnCloseFiles.addEventListener("click", () => elements.filesDialog.close());
+  elements.btnCloseFilesFooter.addEventListener("click", () => elements.filesDialog.close());
+  elements.pasteZone.addEventListener("paste", handlePaste);
+  elements.pasteZone.addEventListener("click", () => elements.pasteZone.focus());
+  elements.archivoFile.addEventListener("change", () => {
+    archivoPegado = null;
+    elements.pasteFileName.textContent = "Sin captura pegada";
+    showFilePreview(elements.archivoFile.files?.[0] || null);
+  });
+  elements.btnCloseActivities.addEventListener("click", () => elements.activitiesDialog.close());
+  elements.btnCloseActivitiesFooter.addEventListener("click", () => elements.activitiesDialog.close());
+  elements.btnBackToReports.addEventListener("click", () => elements.activitiesDialog.close());
   elements.searchInput.addEventListener("input", renderContracts);
   elements.btnMenu.addEventListener("click", () => elements.sidebar.classList.toggle("abierto"));
 
@@ -747,8 +1227,24 @@ function attachEvents() {
     const button = event.target.closest("button[data-report-action]");
     if (!button) return;
     const id = button.dataset.id;
+    if (button.dataset.reportAction === "open") openActivitiesManager(id);
     if (button.dataset.reportAction === "edit") editReport(id);
     if (button.dataset.reportAction === "delete") deleteReport(id);
+  });
+
+  elements.activitiesNestedList.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-activity-action]");
+    if (!button) return;
+    if (button.dataset.activityAction === "new") selectObligationForActivity(button.dataset.obligationId);
+    if (button.dataset.activityAction === "files") openFilesManager(button.dataset.id);
+    if (button.dataset.activityAction === "edit") editActivity(button.dataset.id);
+    if (button.dataset.activityAction === "delete") deleteActivity(button.dataset.id);
+  });
+
+  elements.filesList.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-file-action]");
+    if (!button) return;
+    if (button.dataset.fileAction === "delete") deleteActivityFile(button.dataset.id);
   });
 }
 

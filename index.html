@@ -331,6 +331,184 @@
   </dialog>
 
 
+  <dialog id="activitiesDialog" class="dialog xwide-dialog">
+    <div class="dialog-card">
+      <div class="dialog-header">
+        <div>
+          <h2 id="activitiesTitle">Actividades del informe</h2>
+          <p id="activitiesSubtitle">Registra actividades por cada obligación del contrato.</p>
+        </div>
+        <button type="button" id="btnCloseActivities" class="icon-btn">×</button>
+      </div>
+
+      <div class="activity-layout">
+        <section class="panel-box">
+          <h3 id="activityFormTitle">Nueva actividad</h3>
+          <p id="activityContext" class="muted small-text">Selecciona una obligación desde el panel derecho.</p>
+
+          <form id="activityForm" class="mini-form">
+            <input type="hidden" id="activityId" />
+            <input type="hidden" id="activityObligationId" />
+
+            <label>
+              Obligación seleccionada
+              <input id="activityObligationLabel" type="text" readonly placeholder="Sin obligación seleccionada" />
+            </label>
+
+            <label>
+              Código
+              <input id="actividad_codigo" type="text" placeholder="Ej.: ACT-01" />
+            </label>
+
+            <label>
+              Fecha de actividad
+              <input id="actividad_fecha" type="date" />
+            </label>
+
+            <label>
+              Título
+              <input id="actividad_titulo" type="text" placeholder="Nombre corto de la actividad" />
+            </label>
+
+            <label>
+              Descripción / informe de avance *
+              <textarea id="actividad_descripcion" rows="7" required></textarea>
+            </label>
+
+            <label>
+              Tipo de actividad
+              <input id="actividad_tipo" type="text" placeholder="Reunión, documento, gestión, seguimiento..." />
+            </label>
+
+            <label>
+              Lugar
+              <input id="actividad_lugar" type="text" />
+            </label>
+
+            <label>
+              Entidades participantes
+              <textarea id="actividad_entidades" rows="3"></textarea>
+            </label>
+
+            <label>
+              Observaciones
+              <textarea id="actividad_observaciones" rows="3"></textarea>
+            </label>
+
+            <div class="inline-actions">
+              <button type="submit" class="btn btn-primary">Guardar actividad</button>
+              <button type="button" id="btnClearActivity" class="btn btn-light">Limpiar</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="panel-box">
+          <div class="list-header">
+            <div>
+              <h3>Obligaciones e informe</h3>
+              <p id="activitiesCount" class="muted">0 actividades</p>
+            </div>
+            <button type="button" id="btnReloadActivities" class="btn btn-light">Actualizar</button>
+          </div>
+
+          <div id="activitiesLoading" class="loading oculto">Cargando obligaciones y actividades...</div>
+          <div id="activitiesNestedList" class="nested-list"></div>
+          <div id="activitiesEmpty" class="empty-state oculto">
+            <h3>Sin obligaciones</h3>
+            <p>Este contrato no tiene obligaciones registradas.</p>
+          </div>
+        </section>
+      </div>
+
+      <div class="dialog-actions">
+        <button type="button" id="btnBackToReports" class="btn btn-light">Volver a informes</button>
+        <button type="button" id="btnCloseActivitiesFooter" class="btn btn-light">Cerrar</button>
+      </div>
+    </div>
+  </dialog>
+
+
+  <dialog id="filesDialog" class="dialog wide-dialog">
+    <div class="dialog-card">
+      <div class="dialog-header">
+        <div>
+          <h2 id="filesTitle">Imágenes de la actividad</h2>
+          <p id="filesSubtitle">Sube imágenes, pega capturas y clasifícalas para el futuro ayudamemoria.</p>
+        </div>
+        <button type="button" id="btnCloseFiles" class="icon-btn">×</button>
+      </div>
+
+      <div class="split-panel files-layout">
+        <section class="panel-box">
+          <h3 id="fileFormTitle">Agregar imagen</h3>
+          <form id="fileForm" class="mini-form">
+            <input type="hidden" id="fileItemId" />
+
+            <label>
+              Categoría *
+              <select id="archivo_categoria" required>
+                <option value="encabezado">Encabezado</option>
+                <option value="cuerpo" selected>Cuerpo</option>
+                <option value="anexo">Anexo</option>
+                <option value="soporte">Soporte</option>
+              </select>
+            </label>
+
+            <label>
+              Descripción
+              <textarea id="archivo_descripcion" rows="3" placeholder="Ej.: Captura de reunión, fotografía de actividad, soporte..."></textarea>
+            </label>
+
+            <label>
+              Orden
+              <input id="archivo_orden" type="number" min="1" step="1" value="1" />
+            </label>
+
+            <label>
+              Seleccionar imagen
+              <input id="archivo_file" type="file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" />
+            </label>
+
+            <div id="pasteZone" class="paste-zone" tabindex="0">
+              <strong>Pegar captura aquí</strong>
+              <span>Haz clic en este recuadro y presiona Ctrl + V con una captura copiada.</span>
+              <em id="pasteFileName">Sin captura pegada</em>
+            </div>
+
+            <div id="filePreview" class="file-preview oculto"></div>
+
+            <div class="inline-actions">
+              <button type="submit" class="btn btn-primary">Guardar imagen</button>
+              <button type="button" id="btnClearFile" class="btn btn-light">Limpiar</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="panel-box">
+          <div class="list-header">
+            <div>
+              <h3>Archivos cargados</h3>
+              <p id="filesCount" class="muted">0 archivos</p>
+            </div>
+            <button type="button" id="btnReloadFiles" class="btn btn-light">Actualizar</button>
+          </div>
+
+          <div id="filesLoading" class="loading oculto">Cargando archivos...</div>
+          <div id="filesList" class="files-list"></div>
+          <div id="filesEmpty" class="empty-state oculto">
+            <h3>Sin imágenes o archivos</h3>
+            <p>Agrega imágenes de encabezado, cuerpo o soportes para esta actividad.</p>
+          </div>
+        </section>
+      </div>
+
+      <div class="dialog-actions">
+        <button type="button" id="btnCloseFilesFooter" class="btn btn-light">Cerrar</button>
+      </div>
+    </div>
+  </dialog>
+
+
   <script src="app.js"></script>
 </body>
 </html>
