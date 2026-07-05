@@ -312,9 +312,11 @@ function excelHtmlDocument(title, bodyHtml) {
   <title>${escapeHtml(title)}</title>
   <style>
     body { font-family: Arial, sans-serif; }
-    table { border-collapse: collapse; width: 100%; }
-    th, td { border: 1px solid #999; padding: 8px; vertical-align: top; white-space: pre-line; }
-    th { background: #e9eef5; }
+    table { border-collapse: collapse; width: 100%; table-layout: fixed; }
+    th, td { border: 1px solid #000; padding: 6px; vertical-align: top; white-space: pre-line; mso-data-placement: same-cell; }
+    th { background: #f2f2f2; font-weight: bold; text-align: left; }
+    th:first-child, td:first-child { width: 38%; }
+    th:last-child, td:last-child { width: 62%; }
   </style>
 </head>
 <body>${bodyHtml}</body>
@@ -808,7 +810,8 @@ function setActivitiesLoading(isLoading) {
 }
 
 function activityLabel(item) {
-  return item.titulo || item.codigo || dateShort(item.fecha_actividad) || "Actividad";
+  const title = item.titulo || dateShort(item.fecha_actividad) || "Actividad";
+  return item.codigo ? `${item.codigo}. ${title}` : title;
 }
 
 function resetActivityForm() {
@@ -830,7 +833,8 @@ function selectObligationForActivity(obligationId) {
   elements.activityObligationLabel.value = `${obligationLabel(item)} - ${(item.descripcion || "").slice(0, 80)}`;
   elements.activityFormTitle.textContent = `Nueva actividad para ${obligationLabel(item)}`;
   elements.activityContext.textContent = `Informe: ${reportLabel(informeSeleccionado || {})}`;
-  elements.actividadCodigo.focus();
+  elements.actividadCodigo.value = nextActivityCode();
+  elements.actividadFecha.focus();
 }
 
 function editActivity(activityId) {
@@ -854,7 +858,7 @@ function editActivity(activityId) {
   elements.actividadLugar.value = item.lugar || "";
   elements.actividadEntidades.value = item.entidades || "";
   elements.actividadObservaciones.value = item.observaciones || "";
-  elements.actividadCodigo.focus();
+  elements.actividadFecha.focus();
 }
 
 async function openActivitiesManager(reportId) {
@@ -973,7 +977,9 @@ async function saveActivity(event) {
   const body = {
     informe_id: informeSeleccionado.id,
     obligacion_id: obligationId,
-    codigo: elements.actividadCodigo.value.trim() || null,
+    codigo: activityId
+      ? (elements.actividadCodigo.value.trim() || actividadesActuales.find((act) => act.id === activityId)?.codigo || nextActivityCode())
+      : nextActivityCode(),
     fecha_actividad: elements.actividadFecha.value || null,
     titulo: elements.actividadTitulo.value.trim() || null,
     descripcion,
@@ -1016,30 +1022,55 @@ async function deleteActivity(activityId) {
 
 
 function activitiesForObligation(obligationId) {
-  return actividadesActuales.filter((act) => getActivityObligationId(act) === obligationId);
+  return actividadesActuales
+    .filter((act) => getActivityObligationId(act) === obligationId)
+    .sort(compareActivitiesForReport);
 }
 
-function activityExportText(activity, index) {
-  const lines = [];
-  const encabezado = activityLabel(activity);
-  lines.push(`${index}. ${encabezado}`);
-  if (activity.fecha_actividad) lines.push(`Fecha: ${dateShort(activity.fecha_actividad)}`);
-  if (activity.tipo_actividad) lines.push(`Tipo: ${activity.tipo_actividad}`);
-  if (activity.lugar) lines.push(`Lugar: ${activity.lugar}`);
-  if (activity.descripcion) lines.push(`Descripción: ${activity.descripcion}`);
-  if (activity.entidades) lines.push(`Entidades: ${activity.entidades}`);
-  if (activity.observaciones) lines.push(`Observaciones: ${activity.observaciones}`);
-  return lines.join("\n");
+function activityCodeNumber(value) {
+  const match = String(value || "").trim().match(/^A(\d+)$/i);
+  return match ? Number(match[1]) : Number.POSITIVE_INFINITY;
+}
+
+function compareActivitiesForReport(a, b) {
+  const codeDiff = activityCodeNumber(a.codigo) - activityCodeNumber(b.codigo);
+  if (Number.isFinite(codeDiff) && codeDiff !== 0) return codeDiff;
+  const dateDiff = String(a.fecha_actividad || "").localeCompare(String(b.fecha_actividad || ""));
+  if (dateDiff !== 0) return dateDiff;
+  return String(a.created_at || a.id || "").localeCompare(String(b.created_at || b.id || ""));
+}
+
+function nextActivityCode() {
+  const max = actividadesActuales.reduce((acc, act) => {
+    const num = activityCodeNumber(act.codigo);
+    return Number.isFinite(num) ? Math.max(acc, num) : acc;
+  }, 0);
+  return `A${max + 1}`;
+}
+
+function activityDisplayCode(activity) {
+  if (activity?.codigo) return String(activity.codigo).trim();
+  return "";
+}
+
+function activityExportText(activity) {
+  const code = activityDisplayCode(activity);
+  const title = plainText(activity.titulo || "");
+  const description = plainText(activity.descripcion || "");
+  const main = title && description && title !== description
+    ? `${title}: ${description}`
+    : (title || description || "Actividad registrada");
+  return `${code ? code + ". " : ""}${main}`;
 }
 
 function buildReportMatrixRows() {
   return obligacionesParaInforme.map((obligation) => {
     const activities = activitiesForObligation(obligation.id);
     return {
-      obligacion: `${obligationLabel(obligation)}\n${plainText(obligation.descripcion)}`.trim(),
+      obligacion: `${obligation.numero ?? ""}\n${plainText(obligation.descripcion)}`.trim(),
       actividades: activities.length
-        ? activities.map((activity, index) => activityExportText(activity, index + 1)).join("\n\n")
-        : "Sin actividades registradas para este informe.",
+        ? activities.map((activity) => activityExportText(activity)).join("\n")
+        : "",
     };
   });
 }
@@ -1066,7 +1097,7 @@ function exportReportCsv() {
   if (!ensureReportReadyForExport()) return;
   const rows = buildReportMatrixRows();
   const csv = [
-    ["Obligaciones", "Actividades"].map(csvCell).join(","),
+    ["ID OBLIGACIÓN", monthName(informeSeleccionado?.mes).toUpperCase()].map(csvCell).join(","),
     ...rows.map((row) => [csvCell(row.obligacion), csvCell(row.actividades)].join(",")),
   ].join("\r\n");
   downloadTextFile(`${reportFileBaseName()}.csv`, "\ufeff" + csv, "text/csv;charset=utf-8");
@@ -1076,12 +1107,11 @@ function exportReportCsv() {
 function exportReportExcel() {
   if (!ensureReportReadyForExport()) return;
   const rows = buildReportMatrixRows();
+  const monthHeader = monthName(informeSeleccionado?.mes).toUpperCase();
   const title = `Informe ${reportLabel(informeSeleccionado || {})}`;
   const body = `
-    <h1>${escapeHtml(title)}</h1>
-    <p><strong>Contrato:</strong> ${escapeHtml(contratoSeleccionado?.numero_contrato || "")}</p>
-    <table>
-      <thead><tr><th>Obligaciones</th><th>Actividades</th></tr></thead>
+    <table class="report-export-table">
+      <thead><tr><th>ID OBLIGACIÓN</th><th>${escapeHtml(monthHeader)}</th></tr></thead>
       <tbody>
         ${rows.map((row) => `<tr><td>${escapeHtml(row.obligacion)}</td><td>${escapeHtml(row.actividades)}</td></tr>`).join("")}
       </tbody>
@@ -1153,28 +1183,38 @@ async function renderMemoImages(files, category, emptyText = "Sin imagen") {
   return parts.join("");
 }
 
+function dateLongEs(value) {
+  if (!value) return "";
+  const [year, month, day] = String(value).slice(0, 10).split("-");
+  if (!year || !month || !day) return dateShort(value);
+  return `${day}-${monthName(Number(month)).toLowerCase()}-${year}`;
+}
+
+function memoTextParagraphs(text) {
+  const value = plainText(text);
+  if (!value) return "";
+  return value.split("\n").filter(Boolean).map((line) => `<p>${escapeHtml(line)}</p>`).join("");
+}
+
 function activityInfoHtml(activity) {
-  const rows = [
-    ["Contrato", `${contratoSeleccionado?.numero_contrato || ""}${contratoSeleccionado?.entidad ? " · " + contratoSeleccionado.entidad : ""}`],
-    ["Informe", reportLabel(informeSeleccionado || {})],
-    ["Actividad", activityLabel(activity)],
-    ["Fecha", dateShort(activity.fecha_actividad)],
-    ["Tipo de actividad", activity.tipo_actividad || ""],
-    ["Lugar", activity.lugar || ""],
-    ["Entidades participantes", activity.entidades || ""],
+  const modalidad = activity.titulo || activity.tipo_actividad || "";
+  const convoca = activity.lugar || "";
+  const participantes = activity.entidades || "";
+  const metaRows = [
+    ["Fecha", dateLongEs(activity.fecha_actividad)],
+    ["Modalidad", modalidad],
+    ["Convoca", convoca],
+    ["Participan", participantes],
   ].filter(([, value]) => value);
 
   return `
-    <table class="memo-info-table">
-      <tbody>
-        ${rows.map(([key, value]) => `<tr><th>${escapeHtml(key)}</th><td>${escapeHtml(value)}</td></tr>`).join("")}
-      </tbody>
-    </table>
-    <section class="memo-section">
-      <h3>Desarrollo de la actividad</h3>
-      <p>${escapeHtml(activity.descripcion || "")}</p>
+    <section class="memo-meta-lines">
+      ${metaRows.map(([key, value]) => `<p><strong>${escapeHtml(key)}:</strong> ${escapeHtml(value)}</p>`).join("")}
     </section>
-    ${activity.observaciones ? `<section class="memo-section"><h3>Observaciones</h3><p>${escapeHtml(activity.observaciones)}</p></section>` : ""}
+    <section class="memo-section memo-development">
+      ${memoTextParagraphs(activity.descripcion || "")}
+    </section>
+    ${activity.observaciones ? `<section class="memo-section"><h3>Observaciones</h3>${memoTextParagraphs(activity.observaciones)}</section>` : ""}
   `;
 }
 
@@ -1191,23 +1231,18 @@ async function openMemo(activityId) {
 
     memoActualNombre = `ayudamemoria-${fileSafe(activityLabel(activity))}`;
     memoActualHtml = `
-      <article class="memo-document">
-        <h1>Ayudamemoria</h1>
-        <table class="memo-header-table">
+      <article class="memo-document memo-formal-document">
+        <h1>AYUDA MEMORIA</h1>
+        <table class="memo-header-table formal-header-table">
           <tbody>
             <tr>
-              <th>Imagen encabezado</th>
-              <th>Objetivo</th>
-            </tr>
-            <tr>
-              <td>${headerImages}</td>
-              <td><p>${escapeHtml(objetivo)}</p></td>
+              <td class="memo-header-image-cell">${headerImages}</td>
+              <td class="memo-objective-cell"><strong>Objetivo identificado</strong><p>${escapeHtml(objetivo)}</p></td>
             </tr>
           </tbody>
         </table>
         ${activityInfoHtml(activity)}
-        <section class="memo-section">
-          <h3>Imágenes de cuerpo</h3>
+        <section class="memo-section memo-body-images">
           <div class="memo-images-grid">${bodyImages}</div>
         </section>
       </article>
@@ -1234,13 +1269,21 @@ function downloadMemoWord() {
   <meta charset="UTF-8">
   <title>Ayudamemoria</title>
   <style>
-    body { font-family: Arial, sans-serif; color: #111827; }
-    h1 { text-align: center; }
+    body { font-family: Arial, sans-serif; color: #111; font-size: 12pt; }
+    h1 { text-align: center; font-size: 13pt; margin: 0 0 14px; text-transform: uppercase; }
     table { border-collapse: collapse; width: 100%; }
-    th, td { border: 1px solid #999; padding: 8px; vertical-align: top; }
-    img { max-width: 260px; height: auto; display: block; margin-bottom: 6px; }
-    .memo-info-table th { width: 28%; background: #eef1f6; text-align: left; }
-    .memo-section { margin-top: 18px; }
+    th, td { border: 1px solid #000; padding: 8px; vertical-align: top; }
+    img { max-width: 100%; height: auto; display: block; }
+    .formal-header-table { margin-bottom: 18px; }
+    .formal-header-table td { width: 50%; height: 120px; }
+    .memo-header-image-cell img { max-height: 150px; max-width: 100%; }
+    .memo-objective-cell strong { display: block; margin-bottom: 18px; }
+    .memo-meta-lines { margin: 14px 0; }
+    .memo-meta-lines p { margin: 2px 0; }
+    .memo-section { margin-top: 16px; }
+    .memo-section h3 { font-size: 12pt; margin-bottom: 8px; }
+    .memo-body-images .memo-figure img { width: 100%; max-width: 640px; margin-top: 10px; }
+    .memo-empty-image { color: #666; }
   </style>
 </head>
 <body>${memoActualHtml}</body>
@@ -1265,17 +1308,22 @@ function printMemoPdf() {
   <meta charset="UTF-8">
   <title>${escapeHtml(memoActualNombre)}</title>
   <style>
-    body { font-family: Arial, sans-serif; color: #111827; margin: 24px; }
-    h1 { text-align: center; }
+    body { font-family: Arial, sans-serif; color: #111; margin: 24px 38px; font-size: 12pt; }
+    h1 { text-align: center; font-size: 13pt; margin: 0 0 14px; text-transform: uppercase; }
     table { border-collapse: collapse; width: 100%; }
-    th, td { border: 1px solid #999; padding: 8px; vertical-align: top; }
+    th, td { border: 1px solid #000; padding: 8px; vertical-align: top; }
     img { max-width: 100%; height: auto; }
-    .memo-header-table td { width: 50%; }
-    .memo-info-table th { width: 28%; background: #eef1f6; text-align: left; }
-    .memo-section { margin-top: 18px; }
-    .memo-figure { margin: 0 0 10px 0; }
-    .memo-figure img { max-width: 320px; }
-    .memo-empty-image { color: #6b7280; border: 1px dashed #aaa; padding: 20px; text-align: center; }
+    .formal-header-table { margin-bottom: 18px; }
+    .formal-header-table td { width: 50%; height: 120px; }
+    .memo-header-image-cell img { max-height: 150px; max-width: 100%; }
+    .memo-objective-cell strong { display: block; margin-bottom: 18px; }
+    .memo-meta-lines { margin: 14px 0; }
+    .memo-meta-lines p { margin: 2px 0; }
+    .memo-section { margin-top: 16px; }
+    .memo-section h3 { font-size: 12pt; margin-bottom: 8px; }
+    .memo-figure { margin: 0 0 12px 0; }
+    .memo-body-images .memo-figure img { width: 100%; max-width: 640px; }
+    .memo-empty-image { color: #666; }
   </style>
 </head>
 <body>${memoActualHtml}</body>

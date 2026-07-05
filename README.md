@@ -1,22 +1,32 @@
-# AppWeb Directus Pro - Exportaciones con imágenes embebidas
+# AppWeb Directus Pro - refinada
 
-Versión ajustada para que las imágenes cargadas en actividades se usen de forma autenticada desde Directus y se incrusten como `data:image/...` dentro de la vista de ayudamemoria y del archivo Word.
+Versión refinada para gestión de contratos, obligaciones, informes mensuales, actividades e imágenes.
 
-## Corrección incluida
+## Ajustes incluidos
 
-- Las miniaturas de imágenes en la interfaz ya no dependen de un `<img src="/assets/...">` sin autorización.
-- El botón **Ver** abre la imagen usando el token de sesión de la AppWeb.
-- La **Ayudamemoria** convierte las imágenes de encabezado y cuerpo a Base64 antes de generar el documento.
-- El archivo Word descargado incluye las imágenes embebidas, no solo enlaces externos.
+- Numeración automática general de actividades por informe: A1, A2, A3...
+- Exportación mensual en CSV y Excel con dos columnas:
+  - `ID OBLIGACIÓN`
+  - Mes seleccionado en mayúsculas, por ejemplo `JUNIO`
+- Las actividades se exportan dentro de la misma celda separadas por saltos de línea.
+- Excel en formato `.xls` HTML con texto ajustado dentro de celda.
+- Ayudamemoria con formato institucional:
+  - Título centrado `AYUDA MEMORIA`
+  - Tabla superior de dos columnas: imagen de encabezado y objetivo identificado
+  - Datos narrativos debajo: fecha, modalidad, convoca y participantes
+  - Desarrollo de la actividad
+  - Imágenes de cuerpo a ancho amplio
+- Imágenes embebidas en el Word como Base64.
 
 ## Uso
 
-1. Abrir `index.html` con Live Server.
-2. Iniciar sesión con el usuario de Directus.
-3. Abrir Contratos → Informes → Abrir informe → Actividades.
-4. En una actividad, subir imágenes y clasificarlas como `encabezado` o `cuerpo`.
-5. Generar Ayudamemoria y descargar Word o imprimir como PDF.
+Abrir `index.html` con Live Server desde VS Code.
 
-## URL Directus configurada
+Directus configurado por defecto en:
 
 `http://100.105.113.77:8055`
+
+
+## Ajuste móvil de informes
+
+En el panel previo de Informes se ocultó la lista de obligaciones del contrato para ahorrar espacio, especialmente en celular. Las obligaciones siguen cargándose y se trabajan al abrir cada informe mensual, donde se agregan las actividades por obligación.

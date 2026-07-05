@@ -290,11 +290,11 @@
             </div>
           </form>
 
-          <div class="related-box">
+          <div class="related-box report-obligations-preview oculto" aria-hidden="true">
             <div class="list-header compact">
               <div>
                 <h3>Obligaciones del contrato</h3>
-                <p class="muted">Se cargan automáticamente para que puedas revisar el alcance del informe.</p>
+                <p class="muted">Vista interna oculta: las obligaciones se trabajan al abrir cada informe.</p>
               </div>
             </div>
             <div id="reportObligationsLoading" class="loading oculto">Cargando obligaciones...</div>
@@ -356,8 +356,8 @@
             </label>
 
             <label>
-              Código
-              <input id="actividad_codigo" type="text" placeholder="Ej.: ACT-01" />
+              Código automático
+              <input id="actividad_codigo" type="text" placeholder="Se asigna automáticamente: A1, A2, A3..." readonly />
             </label>
 
             <label>
@@ -409,8 +409,8 @@
               <p id="activitiesCount" class="muted">0 actividades</p>
             </div>
             <div class="inline-actions compact-actions">
-              <button type="button" id="btnExportReportCsv" class="btn btn-light">CSV</button>
-              <button type="button" id="btnExportReportExcel" class="btn btn-light">Excel</button>
+              <button type="button" id="btnExportReportCsv" class="btn btn-light">CSV mensual</button>
+              <button type="button" id="btnExportReportExcel" class="btn btn-light">Excel mensual</button>
               <button type="button" id="btnReloadActivities" class="btn btn-light">Actualizar</button>
             </div>
           </div>
