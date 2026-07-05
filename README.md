@@ -1,32 +1,21 @@
-# AppWeb Directus Pro - refinada
+# AppWeb Directus Pro - Mobile 3
 
-Versión refinada para gestión de contratos, obligaciones, informes mensuales, actividades e imágenes.
+Versión refinada con iconografía monocromática tipo Bootstrap.
 
 ## Ajustes incluidos
 
-- Numeración automática general de actividades por informe: A1, A2, A3...
-- Exportación mensual en CSV y Excel con dos columnas:
-  - `ID OBLIGACIÓN`
-  - Mes seleccionado en mayúsculas, por ejemplo `JUNIO`
-- Las actividades se exportan dentro de la misma celda separadas por saltos de línea.
-- Excel en formato `.xls` HTML con texto ajustado dentro de celda.
-- Ayudamemoria con formato institucional:
-  - Título centrado `AYUDA MEMORIA`
-  - Tabla superior de dos columnas: imagen de encabezado y objetivo identificado
-  - Datos narrativos debajo: fecha, modalidad, convoca y participantes
-  - Desarrollo de la actividad
-  - Imágenes de cuerpo a ancho amplio
-- Imágenes embebidas en el Word como Base64.
+1. **Ayudamemoria Word/PDF**
+   - Tabla superior al 100% del ancho.
+   - Imagen de encabezado al 30% y objetivo al 70%.
+   - Imágenes embebidas en Word.
 
-## Uso
+2. **Botones compactos con iconos monocromáticos**
+   - Iconos SVG inline con estilo tipo Bootstrap Icons.
+   - Sin emojis, para una apariencia más institucional y limpia.
+   - Tooltips nativos con `title` y accesibilidad con `aria-label`.
+   - Mejor lectura en celular.
 
-Abrir `index.html` con Live Server desde VS Code.
+3. **Flujo funcional conservado**
+   - Contratos, obligaciones, informes, actividades, imágenes, exportación CSV/Excel y ayudamemoria.
 
-Directus configurado por defecto en:
-
-`http://100.105.113.77:8055`
-
-
-## Ajuste móvil de informes
-
-En el panel previo de Informes se ocultó la lista de obligaciones del contrato para ahorrar espacio, especialmente en celular. Las obligaciones siguen cargándose y se trabajan al abrir cada informe mensual, donde se agregan las actividades por obligación.
+Abrir con Live Server en VS Code.

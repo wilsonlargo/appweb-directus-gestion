@@ -279,6 +279,30 @@ function plainText(value) {
   return String(value ?? "").replace(/\r\n/g, "\n").trim();
 }
 
+const ICON_PATHS = {
+  clipboardCheck: '<path d="M10.854 7.146a.5.5 0 0 1 0 .708l-3 3a.5.5 0 0 1-.708 0l-1.5-1.5a.5.5 0 1 1 .708-.708L7.5 9.793l2.646-2.647a.5.5 0 0 1 .708 0z"/><path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1z"/><path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0z"/>',
+  calendar: '<path d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5M1 4v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4z"/><path d="M11 6.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5z"/>',
+  pencil: '<path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.814z"/><path fill-rule="evenodd" d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5z"/>',
+  trash: '<path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/><path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1 0-2H5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1h2.5a1 1 0 0 1 1 1M4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11z"/>',
+  folderOpen: '<path d="m1.5 3 .04.87a1.99 1.99 0 0 0-.342 1.311l.637 7A2 2 0 0 0 3.826 14h8.348a2 2 0 0 0 1.991-1.819l.637-7A2 2 0 0 0 12.81 3H9.828a2 2 0 0 1-1.414-.586l-.828-.828A2 2 0 0 0 6.172 1H3.5a2 2 0 0 0-2 2m.694 2.09A1 1 0 0 1 3.19 4h9.62a1 1 0 0 1 .996 1.09l-.637 7a1 1 0 0 1-.995.91H3.826a1 1 0 0 1-.995-.91zM3.5 2h2.672a1 1 0 0 1 .707.293L7.707 3.12A3 3 0 0 0 9.828 4h2.982a2 2 0 0 1 1.414.586l-.029-.321A2 2 0 0 0 12.174 3H9.828a2 2 0 0 1-1.414-.586l-.828-.828A2 2 0 0 0 6.172 1H3.5a2 2 0 0 0-2 2v1.55A2.99 2.99 0 0 1 3.5 2"/>',
+  plusCircle: '<path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/><path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4"/>',
+  image: '<path d="M6.002 5.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0"/><path d="M2.002 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2zm12 1a1 1 0 0 1 1 1v6.5l-3.777-1.947a.5.5 0 0 0-.577.093l-3.71 3.71-2.66-1.772a.5.5 0 0 0-.63.062L1.002 12V3a1 1 0 0 1 1-1z"/>',
+  fileText: '<path d="M5 4a.5.5 0 0 0 0 1h6a.5.5 0 0 0 0-1zm-.5 2.5A.5.5 0 0 1 5 6h6a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5M5 8a.5.5 0 0 0 0 1h6a.5.5 0 0 0 0-1zm0 2a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1z"/><path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5zm-3 0A1.5 1.5 0 0 1 9.5 3V1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5z"/>',
+  eye: '<path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8M1.173 8a13 13 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5s3.879 1.168 5.168 2.457A13 13 0 0 1 14.828 8q-.086.13-.195.288c-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5s-3.879-1.168-5.168-2.457A13 13 0 0 1 1.172 8z"/><path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5M4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0"/>'
+};
+
+function iconSvg(name) {
+  const path = ICON_PATHS[name] || ICON_PATHS.fileText;
+  return `<svg class="bi" width="18" height="18" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" focusable="false">${path}</svg>`;
+}
+
+function iconButton({ className = "btn btn-light btn-icon", actionAttr = "", id = "", icon = "fileText", label = "Acción" }) {
+  const dataPart = actionAttr ? ` ${actionAttr}` : "";
+  const idPart = id ? ` data-id="${escapeHtml(id)}"` : "";
+  const iconMarkup = icon && icon.includes("<svg") ? icon : iconSvg(icon);
+  return `<button class="${className}"${dataPart}${idPart} title="${escapeHtml(label)}" aria-label="${escapeHtml(label)}"><span class="btn-ico" aria-hidden="true">${iconMarkup}</span><span class="btn-label">${escapeHtml(label)}</span></button>`;
+}
+
 function fileSafe(value) {
   return String(value || "archivo")
     .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
@@ -368,11 +392,11 @@ function renderContracts() {
       <td>${escapeHtml(item.contratista || "")}</td>
       <td>${escapeHtml(item.supervisor || "")}</td>
       <td>${escapeHtml(dateShort(item.fecha_inicio))}<br><span class="muted">${escapeHtml(dateShort(item.fecha_fin))}</span></td>
-      <td class="actions">
-        <button class="btn btn-light" data-action="obligations" data-id="${item.id}">Obligaciones</button>
-        <button class="btn btn-light" data-action="reports" data-id="${item.id}">Informes</button>
-        <button class="btn btn-light" data-action="edit" data-id="${item.id}">Editar</button>
-        <button class="btn btn-danger" data-action="delete" data-id="${item.id}">Eliminar</button>
+      <td class="actions action-toolbar">
+        ${iconButton({ actionAttr: 'data-action="obligations"', id: item.id, icon: "clipboardCheck", label: "Obligaciones" })}
+        ${iconButton({ actionAttr: 'data-action="reports"', id: item.id, icon: "calendar", label: "Informes" })}
+        ${iconButton({ actionAttr: 'data-action="edit"', id: item.id, icon: "pencil", label: "Editar" })}
+        ${iconButton({ className: "btn btn-danger btn-icon", actionAttr: 'data-action="delete"', id: item.id, icon: "trash", label: "Eliminar" })}
       </td>
     `;
     elements.contractsTable.appendChild(tr);
@@ -527,9 +551,9 @@ function renderObligations() {
         <strong>${escapeHtml(obligationLabel(item))}</strong>
         <p>${escapeHtml(item.descripcion || "")}</p>
       </div>
-      <div class="card-actions">
-        <button class="btn btn-light" data-obligation-action="edit" data-id="${item.id}">Editar</button>
-        <button class="btn btn-danger" data-obligation-action="delete" data-id="${item.id}">Eliminar</button>
+      <div class="card-actions action-toolbar">
+        ${iconButton({ actionAttr: 'data-obligation-action="edit"', id: item.id, icon: "pencil", label: "Editar obligación" })}
+        ${iconButton({ className: "btn btn-danger btn-icon", actionAttr: 'data-obligation-action="delete"', id: item.id, icon: "trash", label: "Eliminar obligación" })}
       </div>
     `;
     elements.obligationsList.appendChild(article);
@@ -707,10 +731,10 @@ function renderReports() {
         <strong>${escapeHtml(reportLabel(item))}</strong>
         <p><span class="badge">${escapeHtml(item.estado || "borrador")}</span></p>
       </div>
-      <div class="card-actions">
-        <button class="btn btn-primary" data-report-action="open" data-id="${item.id}">Abrir informe</button>
-        <button class="btn btn-light" data-report-action="edit" data-id="${item.id}">Editar</button>
-        <button class="btn btn-danger" data-report-action="delete" data-id="${item.id}">Eliminar</button>
+      <div class="card-actions action-toolbar">
+        ${iconButton({ className: "btn btn-primary btn-icon", actionAttr: 'data-report-action="open"', id: item.id, icon: "folderOpen", label: "Abrir informe" })}
+        ${iconButton({ actionAttr: 'data-report-action="edit"', id: item.id, icon: "pencil", label: "Editar informe" })}
+        ${iconButton({ className: "btn btn-danger btn-icon", actionAttr: 'data-report-action="delete"', id: item.id, icon: "trash", label: "Eliminar informe" })}
       </div>
     `;
     elements.reportsList.appendChild(article);
@@ -928,7 +952,7 @@ function renderActivitiesNested() {
           <strong>${escapeHtml(obligationLabel(obligation))}</strong>
           <p>${escapeHtml(obligation.descripcion || "")}</p>
         </div>
-        <button class="btn btn-primary" data-activity-action="new" data-obligation-id="${obligation.id}">+ Actividad</button>
+        <button class="btn btn-primary btn-icon btn-icon-wide" data-activity-action="new" data-obligation-id="${obligation.id}" title="Agregar actividad" aria-label="Agregar actividad"><span class="btn-ico" aria-hidden="true">${iconSvg("plusCircle")}</span><span class="btn-label">Actividad</span></button>
       </div>
       <div class="activity-list">
         ${activities.length ? activities.map((activity) => `
@@ -940,11 +964,11 @@ function renderActivitiesNested() {
               ${activity.entidades ? `<p class="small-text"><strong>Entidades:</strong> ${escapeHtml(activity.entidades)}</p>` : ""}
               ${activity.observaciones ? `<p class="small-text"><strong>Observaciones:</strong> ${escapeHtml(activity.observaciones)}</p>` : ""}
             </div>
-            <div class="card-actions">
-              <button class="btn btn-light" data-activity-action="files" data-id="${activity.id}">Imágenes</button>
-              <button class="btn btn-light" data-activity-action="memo" data-id="${activity.id}">Ayudamemoria</button>
-              <button class="btn btn-light" data-activity-action="edit" data-id="${activity.id}">Editar</button>
-              <button class="btn btn-danger" data-activity-action="delete" data-id="${activity.id}">Eliminar</button>
+            <div class="card-actions action-toolbar">
+              ${iconButton({ actionAttr: 'data-activity-action="files"', id: activity.id, icon: "image", label: "Imágenes" })}
+              ${iconButton({ actionAttr: 'data-activity-action="memo"', id: activity.id, icon: "fileText", label: "Ayudamemoria" })}
+              ${iconButton({ actionAttr: 'data-activity-action="edit"', id: activity.id, icon: "pencil", label: "Editar actividad" })}
+              ${iconButton({ className: "btn btn-danger btn-icon", actionAttr: 'data-activity-action="delete"', id: activity.id, icon: "trash", label: "Eliminar actividad" })}
             </div>
           </div>
         `).join("") : `<div class="empty-inline">Sin actividades para esta obligación en este informe.</div>`}
@@ -1234,6 +1258,10 @@ async function openMemo(activityId) {
       <article class="memo-document memo-formal-document">
         <h1>AYUDA MEMORIA</h1>
         <table class="memo-header-table formal-header-table">
+          <colgroup>
+            <col class="memo-header-image-col" style="width:30%">
+            <col class="memo-objective-col" style="width:70%">
+          </colgroup>
           <tbody>
             <tr>
               <td class="memo-header-image-cell">${headerImages}</td>
@@ -1274,9 +1302,13 @@ function downloadMemoWord() {
     table { border-collapse: collapse; width: 100%; }
     th, td { border: 1px solid #000; padding: 8px; vertical-align: top; }
     img { max-width: 100%; height: auto; display: block; }
-    .formal-header-table { margin-bottom: 18px; }
-    .formal-header-table td { width: 50%; height: 120px; }
-    .memo-header-image-cell img { max-height: 150px; max-width: 100%; }
+    .formal-header-table { margin-bottom: 18px; table-layout: fixed; width: 100%; }
+    .formal-header-table .memo-header-image-col { width: 30%; }
+    .formal-header-table .memo-objective-col { width: 70%; }
+    .formal-header-table td { height: 120px; }
+    .memo-header-image-cell { width: 30%; }
+    .memo-objective-cell { width: 70%; }
+    .memo-header-image-cell img { max-height: 110px; max-width: 100%; width: auto; }
     .memo-objective-cell strong { display: block; margin-bottom: 18px; }
     .memo-meta-lines { margin: 14px 0; }
     .memo-meta-lines p { margin: 2px 0; }
@@ -1313,9 +1345,13 @@ function printMemoPdf() {
     table { border-collapse: collapse; width: 100%; }
     th, td { border: 1px solid #000; padding: 8px; vertical-align: top; }
     img { max-width: 100%; height: auto; }
-    .formal-header-table { margin-bottom: 18px; }
-    .formal-header-table td { width: 50%; height: 120px; }
-    .memo-header-image-cell img { max-height: 150px; max-width: 100%; }
+    .formal-header-table { margin-bottom: 18px; table-layout: fixed; width: 100%; }
+    .formal-header-table .memo-header-image-col { width: 30%; }
+    .formal-header-table .memo-objective-col { width: 70%; }
+    .formal-header-table td { height: 120px; }
+    .memo-header-image-cell { width: 30%; }
+    .memo-objective-cell { width: 70%; }
+    .memo-header-image-cell img { max-height: 110px; max-width: 100%; width: auto; }
     .memo-objective-cell strong { display: block; margin-bottom: 18px; }
     .memo-meta-lines { margin: 14px 0; }
     .memo-meta-lines p { margin: 2px 0; }
@@ -1434,9 +1470,9 @@ function renderActivityFiles() {
         </div>
         <strong>${escapeHtml(item.nombre_original || item.nombre_archivo || "Archivo")}</strong>
         ${item.descripcion ? `<p>${escapeHtml(item.descripcion)}</p>` : ""}
-        <div class="card-actions">
-          ${fileId ? `<button class="btn btn-light" data-file-action="view" data-file-id="${fileId}">Ver</button>` : ""}
-          <button class="btn btn-danger" data-file-action="delete" data-id="${item.id}">Eliminar</button>
+        <div class="card-actions action-toolbar">
+          ${fileId ? iconButton({ actionAttr: `data-file-action="view" data-file-id="${escapeHtml(fileId)}"`, icon: "eye", label: "Ver archivo" }) : ""}
+          ${iconButton({ className: "btn btn-danger btn-icon", actionAttr: 'data-file-action="delete"', id: item.id, icon: "trash", label: "Eliminar archivo" })}
         </div>
       </div>
     `;
