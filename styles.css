@@ -1,0 +1,32 @@
+* { box-sizing: border-box; }
+body { margin: 0; font-family: Arial, Helvetica, sans-serif; background: #f4f6f8; color: #1f2937; }
+.topbar { background: #fff; border-bottom: 1px solid #e5e7eb; padding: 18px 28px; display: flex; justify-content: space-between; align-items: center; }
+.topbar h1 { margin: 0; font-size: 26px; }
+.topbar p { margin: 4px 0 0; color: #667085; }
+.contenedor { width: min(1320px, 94%); margin: 28px auto; }
+.tarjeta { background: #fff; padding: 22px; border-radius: 14px; margin-bottom: 22px; box-shadow: 0 2px 12px rgba(15,23,42,.08); }
+.tarjeta h2 { margin-top: 0; }
+.grid-2 { display: grid; grid-template-columns: 420px 1fr; gap: 22px; align-items: start; }
+label { display: grid; gap: 7px; margin-bottom: 14px; font-weight: 700; }
+input, textarea, select { width: 100%; padding: 10px 11px; border: 1px solid #cfd6df; border-radius: 8px; font: inherit; background: #fff; }
+textarea { min-height: 96px; resize: vertical; }
+button { background: #6644ff; color: #fff; border: 0; border-radius: 8px; padding: 10px 14px; cursor: pointer; font-weight: 700; }
+button:hover { opacity: .9; }
+.btn-secundario { background: #e9eef5; color: #263445; }
+.btn-mini { padding: 7px 10px; font-size: 13px; }
+.acciones { display: flex; gap: 10px; flex-wrap: wrap; }
+.tabs { display: flex; gap: 8px; margin-bottom: 18px; flex-wrap: wrap; }
+.tab { background: #e9eef5; color: #263445; }
+.tab.activa { background: #6644ff; color: #fff; }
+.panel { display: none; }
+.panel.activo { display: block; }
+.oculto { display: none !important; }
+.tabla-wrap { overflow-x: auto; margin-top: 14px; }
+table { width: 100%; border-collapse: collapse; min-width: 780px; }
+th, td { border-bottom: 1px solid #e5e7eb; padding: 10px; text-align: left; vertical-align: top; }
+th { background: #f1f4f8; font-weight: 800; }
+.mensaje { min-height: 22px; font-weight: 700; }
+.mensaje.ok { color: #087a3d; }
+.mensaje.error { color: #b42318; }
+.nota { color: #667085; margin-top: -6px; }
+@media (max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } .topbar { align-items: flex-start; gap: 12px; flex-direction: column; } }
