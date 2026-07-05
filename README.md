@@ -1,58 +1,26 @@
-# AppWeb Directus Pro - Gestión de Contratos
+# AppWeb Directus Pro - Informes mensuales
 
-Aplicación web estática, responsive, conectada a Directus.
+Aplicación web responsive conectada a Directus en `http://100.105.113.77:8055`.
 
-## Archivos
+## Incluye
 
-- `index.html`
-- `styles.css`
-- `app.js`
+- Login con usuario y contraseña de Directus.
+- Prueba de conexión API.
+- Gestión de contratos: crear, editar, eliminar y listar.
+- Gestión de obligaciones asociadas a cada contrato.
+- Gestión de informes mensuales asociados a cada contrato.
+- Al abrir Informes de un contrato, la app carga automáticamente las obligaciones de ese contrato para tenerlas como referencia durante la creación del informe mensual.
 
 ## Uso
 
-1. Descomprimir el ZIP.
-2. Abrir la carpeta completa en VS Code.
-3. Abrir `index.html` con Live Server.
-4. Ingresar con usuario y contraseña de Directus.
-
-## URL configurada
-
-La URL de Directus está en la primera línea de `app.js`:
-
-```js
-const DIRECTUS_URL = "http://100.105.113.77:8055";
-```
-
-## Funciones incluidas
-
-- Pantalla de inicio con usuario y contraseña.
-- Prueba de conexión con la API de Directus.
-- Listado responsive de contratos.
-- Buscador de contratos.
-- Crear contrato nuevo.
-- Editar contrato existente.
-- Eliminar contrato, si la base lo permite.
-- Resumen con indicadores básicos.
-- Sesión guardada en `localStorage`.
-
-## Colección usada
-
-La app usa la colección Directus:
-
-- `contratos`
-
-Campos esperados:
-
-- `id`
-- `numero_contrato`
-- `objeto`
-- `entidad`
-- `contratista`
-- `supervisor`
-- `fecha_inicio`
-- `fecha_fin`
-- `created_at`
+1. Descomprime el ZIP.
+2. Abre la carpeta en VS Code.
+3. Abre `index.html` con Live Server.
+4. Inicia sesión con un usuario de Directus con permisos sobre:
+   - `contratos`
+   - `obligaciones`
+   - `informes_mensuales`
 
 ## Nota
 
-Para que funcione desde Live Server, Directus debe tener CORS habilitado.
+La tabla `informes_mensuales` se asocia al contrato mediante `contrato_id`. Las obligaciones se cargan como referencia del contrato. Para asociar actividades a obligaciones específicas, el siguiente módulo recomendado es `Actividades`, usando `informe_id` y `obligacion_id`.

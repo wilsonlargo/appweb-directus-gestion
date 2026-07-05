@@ -176,6 +176,161 @@
     </form>
   </dialog>
 
+  <dialog id="obligationsDialog" class="dialog wide-dialog">
+    <div class="dialog-card">
+      <div class="dialog-header">
+        <div>
+          <h2 id="obligationsTitle">Obligaciones del contrato</h2>
+          <p id="obligationsSubtitle">Crea, edita o elimina obligaciones asociadas.</p>
+        </div>
+        <button type="button" id="btnCloseObligations" class="icon-btn">×</button>
+      </div>
+
+      <div class="split-panel">
+        <section class="panel-box">
+          <h3 id="obligationFormTitle">Nueva obligación</h3>
+          <form id="obligationForm" class="mini-form">
+            <input type="hidden" id="obligationId" />
+
+            <label>
+              Número *
+              <input id="obligacion_numero" type="number" min="1" step="1" required />
+            </label>
+
+            <label>
+              Descripción *
+              <textarea id="obligacion_descripcion" rows="7" required></textarea>
+            </label>
+
+            <div class="inline-actions">
+              <button type="submit" class="btn btn-primary">Guardar obligación</button>
+              <button type="button" id="btnClearObligation" class="btn btn-light">Limpiar</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="panel-box">
+          <div class="list-header">
+            <div>
+              <h3>Obligaciones registradas</h3>
+              <p id="obligationsCount" class="muted">0 obligaciones</p>
+            </div>
+            <button type="button" id="btnReloadObligations" class="btn btn-light">Actualizar</button>
+          </div>
+
+          <div id="obligationsLoading" class="loading oculto">Cargando obligaciones...</div>
+          <div id="obligationsList" class="obligation-list"></div>
+          <div id="obligationsEmpty" class="empty-state oculto">
+            <h3>Sin obligaciones</h3>
+            <p>Agrega la primera obligación para este contrato.</p>
+          </div>
+        </section>
+      </div>
+
+      <div class="dialog-actions">
+        <button type="button" id="btnCloseObligationsFooter" class="btn btn-light">Cerrar</button>
+      </div>
+    </div>
+  </dialog>
+
+
+  <dialog id="reportsDialog" class="dialog wide-dialog">
+    <div class="dialog-card">
+      <div class="dialog-header">
+        <div>
+          <h2 id="reportsTitle">Informes mensuales</h2>
+          <p id="reportsSubtitle">Crea, edita o elimina informes asociados al contrato.</p>
+        </div>
+        <button type="button" id="btnCloseReports" class="icon-btn">×</button>
+      </div>
+
+      <div class="split-panel">
+        <section class="panel-box">
+          <h3 id="reportFormTitle">Nuevo informe mensual</h3>
+          <form id="reportForm" class="mini-form">
+            <input type="hidden" id="reportId" />
+
+            <label>
+              Año *
+              <input id="informe_anio" type="number" min="2000" max="2100" step="1" required />
+            </label>
+
+            <label>
+              Mes *
+              <select id="informe_mes" required>
+                <option value="">Seleccionar mes</option>
+                <option value="1">Enero</option>
+                <option value="2">Febrero</option>
+                <option value="3">Marzo</option>
+                <option value="4">Abril</option>
+                <option value="5">Mayo</option>
+                <option value="6">Junio</option>
+                <option value="7">Julio</option>
+                <option value="8">Agosto</option>
+                <option value="9">Septiembre</option>
+                <option value="10">Octubre</option>
+                <option value="11">Noviembre</option>
+                <option value="12">Diciembre</option>
+              </select>
+            </label>
+
+            <label>
+              Estado
+              <select id="informe_estado">
+                <option value="borrador">Borrador</option>
+                <option value="en_revision">En revisión</option>
+                <option value="aprobado">Aprobado</option>
+                <option value="cerrado">Cerrado</option>
+              </select>
+            </label>
+
+            <div class="inline-actions">
+              <button type="submit" class="btn btn-primary">Guardar informe</button>
+              <button type="button" id="btnClearReport" class="btn btn-light">Limpiar</button>
+            </div>
+          </form>
+
+          <div class="related-box">
+            <div class="list-header compact">
+              <div>
+                <h3>Obligaciones del contrato</h3>
+                <p class="muted">Se cargan automáticamente para que puedas revisar el alcance del informe.</p>
+              </div>
+            </div>
+            <div id="reportObligationsLoading" class="loading oculto">Cargando obligaciones...</div>
+            <div id="reportObligationsList" class="obligation-list compact-list"></div>
+            <div id="reportObligationsEmpty" class="empty-state mini oculto">
+              <h3>Sin obligaciones</h3>
+              <p>Este contrato aún no tiene obligaciones registradas.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel-box">
+          <div class="list-header">
+            <div>
+              <h3>Informes registrados</h3>
+              <p id="reportsCount" class="muted">0 informes</p>
+            </div>
+            <button type="button" id="btnReloadReports" class="btn btn-light">Actualizar</button>
+          </div>
+
+          <div id="reportsLoading" class="loading oculto">Cargando informes...</div>
+          <div id="reportsList" class="obligation-list"></div>
+          <div id="reportsEmpty" class="empty-state oculto">
+            <h3>Sin informes mensuales</h3>
+            <p>Crea el primer informe mensual para este contrato.</p>
+          </div>
+        </section>
+      </div>
+
+      <div class="dialog-actions">
+        <button type="button" id="btnCloseReportsFooter" class="btn btn-light">Cerrar</button>
+      </div>
+    </div>
+  </dialog>
+
+
   <script src="app.js"></script>
 </body>
 </html>
