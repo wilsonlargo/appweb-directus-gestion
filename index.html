@@ -408,7 +408,11 @@
               <h3>Obligaciones e informe</h3>
               <p id="activitiesCount" class="muted">0 actividades</p>
             </div>
-            <button type="button" id="btnReloadActivities" class="btn btn-light">Actualizar</button>
+            <div class="inline-actions compact-actions">
+              <button type="button" id="btnExportReportCsv" class="btn btn-light">CSV</button>
+              <button type="button" id="btnExportReportExcel" class="btn btn-light">Excel</button>
+              <button type="button" id="btnReloadActivities" class="btn btn-light">Actualizar</button>
+            </div>
           </div>
 
           <div id="activitiesLoading" class="loading oculto">Cargando obligaciones y actividades...</div>
@@ -504,6 +508,30 @@
 
       <div class="dialog-actions">
         <button type="button" id="btnCloseFilesFooter" class="btn btn-light">Cerrar</button>
+      </div>
+    </div>
+  </dialog>
+
+
+  <dialog id="memoDialog" class="dialog xwide-dialog">
+    <div class="dialog-card memo-dialog-card">
+      <div class="dialog-header">
+        <div>
+          <h2 id="memoTitle">Ayudamemoria</h2>
+          <p id="memoSubtitle">Vista previa imprimible de la actividad.</p>
+        </div>
+        <button type="button" id="btnCloseMemo" class="icon-btn">×</button>
+      </div>
+
+      <div class="memo-actions no-print">
+        <button type="button" id="btnDownloadMemoWord" class="btn btn-primary">Descargar Word</button>
+        <button type="button" id="btnPrintMemoPdf" class="btn btn-light">Imprimir / PDF</button>
+      </div>
+
+      <div id="memoPreview" class="memo-preview"></div>
+
+      <div class="dialog-actions no-print">
+        <button type="button" id="btnCloseMemoFooter" class="btn btn-light">Cerrar</button>
       </div>
     </div>
   </dialog>

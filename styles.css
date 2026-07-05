@@ -480,3 +480,136 @@ input[readonly] {
   .file-card { grid-template-columns: 1fr; }
   .file-thumb { height: 180px; }
 }
+
+/* Exportación y ayudamemoria */
+.compact-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.memo-dialog-card {
+  max-width: 1120px;
+}
+
+.memo-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.memo-preview {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 22px;
+  max-height: 70vh;
+  overflow: auto;
+}
+
+.memo-document {
+  color: #111827;
+  line-height: 1.5;
+}
+
+.memo-document h1 {
+  text-align: center;
+  margin: 0 0 18px;
+}
+
+.memo-header-table,
+.memo-info-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 18px;
+}
+
+.memo-header-table th,
+.memo-header-table td,
+.memo-info-table th,
+.memo-info-table td {
+  border: 1px solid #cfd6dd;
+  padding: 10px;
+  vertical-align: top;
+}
+
+.memo-header-table th {
+  background: #eef3f7;
+  text-align: left;
+}
+
+.memo-header-table td {
+  width: 50%;
+}
+
+.memo-info-table th {
+  width: 28%;
+  background: #f4f6f8;
+  text-align: left;
+}
+
+.memo-section {
+  margin-top: 18px;
+}
+
+.memo-section h3 {
+  margin-bottom: 8px;
+}
+
+.memo-figure {
+  margin: 0 0 12px;
+}
+
+.memo-figure img {
+  max-width: 100%;
+  max-height: 280px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  object-fit: contain;
+}
+
+.memo-figure figcaption {
+  font-size: 0.88rem;
+  color: #56616d;
+  margin-top: 4px;
+}
+
+.memo-empty-image {
+  border: 1px dashed #aab3bd;
+  color: #6b7280;
+  padding: 22px;
+  text-align: center;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.memo-images-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+@media print {
+  body > *:not(.print-root) {
+    display: none !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+}
+
+@media (max-width: 720px) {
+  .memo-header-table,
+  .memo-header-table tbody,
+  .memo-header-table tr,
+  .memo-header-table th,
+  .memo-header-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .memo-preview {
+    padding: 14px;
+  }
+}

@@ -13,6 +13,9 @@ let contratoSeleccionado = null;
 let actividadSeleccionadaParaArchivos = null;
 let archivosActividadActuales = [];
 let archivoPegado = null;
+let memoActualHtml = "";
+let memoActualNombre = "ayudamemoria";
+const assetDataUrlCache = new Map();
 
 const $ = (selector) => document.querySelector(selector);
 
@@ -106,6 +109,8 @@ const elements = {
   btnBackToReports: $("#btnBackToReports"),
   btnClearActivity: $("#btnClearActivity"),
   btnReloadActivities: $("#btnReloadActivities"),
+  btnExportReportCsv: $("#btnExportReportCsv"),
+  btnExportReportExcel: $("#btnExportReportExcel"),
   filesDialog: $("#filesDialog"),
   filesTitle: $("#filesTitle"),
   filesSubtitle: $("#filesSubtitle"),
@@ -127,6 +132,14 @@ const elements = {
   btnCloseFilesFooter: $("#btnCloseFilesFooter"),
   btnClearFile: $("#btnClearFile"),
   btnReloadFiles: $("#btnReloadFiles"),
+  memoDialog: $("#memoDialog"),
+  memoTitle: $("#memoTitle"),
+  memoSubtitle: $("#memoSubtitle"),
+  memoPreview: $("#memoPreview"),
+  btnCloseMemo: $("#btnCloseMemo"),
+  btnCloseMemoFooter: $("#btnCloseMemoFooter"),
+  btnDownloadMemoWord: $("#btnDownloadMemoWord"),
+  btnPrintMemoPdf: $("#btnPrintMemoPdf"),
   pageTitle: $("#pageTitle"),
   pageSubtitle: $("#pageSubtitle"),
 };
@@ -260,6 +273,52 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function plainText(value) {
+  return String(value ?? "").replace(/\r\n/g, "\n").trim();
+}
+
+function fileSafe(value) {
+  return String(value || "archivo")
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9-_]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .toLowerCase() || "archivo";
+}
+
+function downloadTextFile(filename, content, mimeType) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function csvCell(value) {
+  const text = String(value ?? "").replace(/"/g, '""');
+  return `"${text}"`;
+}
+
+function excelHtmlDocument(title, bodyHtml) {
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>${escapeHtml(title)}</title>
+  <style>
+    body { font-family: Arial, sans-serif; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #999; padding: 8px; vertical-align: top; white-space: pre-line; }
+    th { background: #e9eef5; }
+  </style>
+</head>
+<body>${bodyHtml}</body>
+</html>`;
 }
 
 async function loadContracts() {
@@ -879,6 +938,7 @@ function renderActivitiesNested() {
             </div>
             <div class="card-actions">
               <button class="btn btn-light" data-activity-action="files" data-id="${activity.id}">Imágenes</button>
+              <button class="btn btn-light" data-activity-action="memo" data-id="${activity.id}">Ayudamemoria</button>
               <button class="btn btn-light" data-activity-action="edit" data-id="${activity.id}">Editar</button>
               <button class="btn btn-danger" data-activity-action="delete" data-id="${activity.id}">Eliminar</button>
             </div>
@@ -954,6 +1014,276 @@ async function deleteActivity(activityId) {
   }
 }
 
+
+function activitiesForObligation(obligationId) {
+  return actividadesActuales.filter((act) => getActivityObligationId(act) === obligationId);
+}
+
+function activityExportText(activity, index) {
+  const lines = [];
+  const encabezado = activityLabel(activity);
+  lines.push(`${index}. ${encabezado}`);
+  if (activity.fecha_actividad) lines.push(`Fecha: ${dateShort(activity.fecha_actividad)}`);
+  if (activity.tipo_actividad) lines.push(`Tipo: ${activity.tipo_actividad}`);
+  if (activity.lugar) lines.push(`Lugar: ${activity.lugar}`);
+  if (activity.descripcion) lines.push(`Descripción: ${activity.descripcion}`);
+  if (activity.entidades) lines.push(`Entidades: ${activity.entidades}`);
+  if (activity.observaciones) lines.push(`Observaciones: ${activity.observaciones}`);
+  return lines.join("\n");
+}
+
+function buildReportMatrixRows() {
+  return obligacionesParaInforme.map((obligation) => {
+    const activities = activitiesForObligation(obligation.id);
+    return {
+      obligacion: `${obligationLabel(obligation)}\n${plainText(obligation.descripcion)}`.trim(),
+      actividades: activities.length
+        ? activities.map((activity, index) => activityExportText(activity, index + 1)).join("\n\n")
+        : "Sin actividades registradas para este informe.",
+    };
+  });
+}
+
+function ensureReportReadyForExport() {
+  if (!informeSeleccionado?.id || !contratoSeleccionado?.id) {
+    toast("Primero abre un informe mensual", "error");
+    return false;
+  }
+  if (!obligacionesParaInforme.length) {
+    toast("El contrato no tiene obligaciones para exportar", "error");
+    return false;
+  }
+  return true;
+}
+
+function reportFileBaseName() {
+  const contract = fileSafe(contratoSeleccionado?.numero_contrato || "contrato");
+  const report = fileSafe(reportLabel(informeSeleccionado || {}));
+  return `informe-${contract}-${report}`;
+}
+
+function exportReportCsv() {
+  if (!ensureReportReadyForExport()) return;
+  const rows = buildReportMatrixRows();
+  const csv = [
+    ["Obligaciones", "Actividades"].map(csvCell).join(","),
+    ...rows.map((row) => [csvCell(row.obligacion), csvCell(row.actividades)].join(",")),
+  ].join("\r\n");
+  downloadTextFile(`${reportFileBaseName()}.csv`, "\ufeff" + csv, "text/csv;charset=utf-8");
+  toast("CSV descargado");
+}
+
+function exportReportExcel() {
+  if (!ensureReportReadyForExport()) return;
+  const rows = buildReportMatrixRows();
+  const title = `Informe ${reportLabel(informeSeleccionado || {})}`;
+  const body = `
+    <h1>${escapeHtml(title)}</h1>
+    <p><strong>Contrato:</strong> ${escapeHtml(contratoSeleccionado?.numero_contrato || "")}</p>
+    <table>
+      <thead><tr><th>Obligaciones</th><th>Actividades</th></tr></thead>
+      <tbody>
+        ${rows.map((row) => `<tr><td>${escapeHtml(row.obligacion)}</td><td>${escapeHtml(row.actividades)}</td></tr>`).join("")}
+      </tbody>
+    </table>
+  `;
+  const html = excelHtmlDocument(title, body);
+  downloadTextFile(`${reportFileBaseName()}.xls`, html, "application/vnd.ms-excel;charset=utf-8");
+  toast("Excel descargado");
+}
+
+async function fetchActivityFiles(activityId) {
+  const params = new URLSearchParams({
+    "filter[actividad_id][_eq]": activityId,
+    fields: "id,actividad_id,nombre_original,nombre_archivo,ruta,tipo_mime,categoria,descripcion,orden,directus_file_id,created_at",
+    sort: "categoria,orden,created_at",
+    limit: "200",
+  });
+  const payload = await api(`/items/archivos_actividad?${params.toString()}`);
+  return payload.data || [];
+}
+
+function imageItemsByCategory(files, category) {
+  return files
+    .filter((item) => (item.categoria || "cuerpo") === category)
+    .filter((item) => String(item.tipo_mime || "").startsWith("image/") && getArchivoFileId(item));
+}
+
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function assetDataUrl(fileId) {
+  if (!fileId) return "";
+  if (assetDataUrlCache.has(fileId)) return assetDataUrlCache.get(fileId);
+
+  const response = await fetch(assetUrl(fileId), {
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+  });
+
+  if (!response.ok) {
+    throw new Error(`No se pudo cargar la imagen ${fileId}`);
+  }
+
+  const blob = await response.blob();
+  const dataUrl = await blobToDataUrl(blob);
+  assetDataUrlCache.set(fileId, dataUrl);
+  return dataUrl;
+}
+
+async function renderMemoImages(files, category, emptyText = "Sin imagen") {
+  const images = imageItemsByCategory(files, category);
+  if (!images.length) return `<div class="memo-empty-image">${escapeHtml(emptyText)}</div>`;
+
+  const parts = await Promise.all(images.map(async (item) => {
+    const dataUrl = await assetDataUrl(getArchivoFileId(item));
+    return `
+      <figure class="memo-figure">
+        <img src="${dataUrl}" alt="${escapeHtml(item.nombre_original || "imagen")}">
+        ${item.descripcion ? `<figcaption>${escapeHtml(item.descripcion)}</figcaption>` : ""}
+      </figure>
+    `;
+  }));
+
+  return parts.join("");
+}
+
+function activityInfoHtml(activity) {
+  const rows = [
+    ["Contrato", `${contratoSeleccionado?.numero_contrato || ""}${contratoSeleccionado?.entidad ? " · " + contratoSeleccionado.entidad : ""}`],
+    ["Informe", reportLabel(informeSeleccionado || {})],
+    ["Actividad", activityLabel(activity)],
+    ["Fecha", dateShort(activity.fecha_actividad)],
+    ["Tipo de actividad", activity.tipo_actividad || ""],
+    ["Lugar", activity.lugar || ""],
+    ["Entidades participantes", activity.entidades || ""],
+  ].filter(([, value]) => value);
+
+  return `
+    <table class="memo-info-table">
+      <tbody>
+        ${rows.map(([key, value]) => `<tr><th>${escapeHtml(key)}</th><td>${escapeHtml(value)}</td></tr>`).join("")}
+      </tbody>
+    </table>
+    <section class="memo-section">
+      <h3>Desarrollo de la actividad</h3>
+      <p>${escapeHtml(activity.descripcion || "")}</p>
+    </section>
+    ${activity.observaciones ? `<section class="memo-section"><h3>Observaciones</h3><p>${escapeHtml(activity.observaciones)}</p></section>` : ""}
+  `;
+}
+
+async function openMemo(activityId) {
+  const activity = actividadesActuales.find((act) => act.id === activityId);
+  if (!activity) return;
+
+  try {
+    toast("Preparando ayudamemoria...");
+    const files = await fetchActivityFiles(activityId);
+    const headerImages = await renderMemoImages(files, "encabezado", "Sin imagen de encabezado");
+    const bodyImages = await renderMemoImages(files, "cuerpo", "Sin imágenes de cuerpo");
+    const objetivo = activity.titulo || activity.descripcion || "Objetivo de la actividad";
+
+    memoActualNombre = `ayudamemoria-${fileSafe(activityLabel(activity))}`;
+    memoActualHtml = `
+      <article class="memo-document">
+        <h1>Ayudamemoria</h1>
+        <table class="memo-header-table">
+          <tbody>
+            <tr>
+              <th>Imagen encabezado</th>
+              <th>Objetivo</th>
+            </tr>
+            <tr>
+              <td>${headerImages}</td>
+              <td><p>${escapeHtml(objetivo)}</p></td>
+            </tr>
+          </tbody>
+        </table>
+        ${activityInfoHtml(activity)}
+        <section class="memo-section">
+          <h3>Imágenes de cuerpo</h3>
+          <div class="memo-images-grid">${bodyImages}</div>
+        </section>
+      </article>
+    `;
+
+    elements.memoTitle.textContent = `Ayudamemoria: ${activityLabel(activity)}`;
+    elements.memoSubtitle.textContent = `${reportLabel(informeSeleccionado || {})} · ${contratoSeleccionado?.numero_contrato || "Contrato"}`;
+    elements.memoPreview.innerHTML = memoActualHtml;
+    elements.memoDialog.showModal();
+  } catch (error) {
+    console.error(error);
+    toast(`No se pudo generar la ayudamemoria: ${error.message}`, "error");
+  }
+}
+
+function downloadMemoWord() {
+  if (!memoActualHtml) {
+    toast("Primero genera una ayudamemoria", "error");
+    return;
+  }
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Ayudamemoria</title>
+  <style>
+    body { font-family: Arial, sans-serif; color: #111827; }
+    h1 { text-align: center; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #999; padding: 8px; vertical-align: top; }
+    img { max-width: 260px; height: auto; display: block; margin-bottom: 6px; }
+    .memo-info-table th { width: 28%; background: #eef1f6; text-align: left; }
+    .memo-section { margin-top: 18px; }
+  </style>
+</head>
+<body>${memoActualHtml}</body>
+</html>`;
+  downloadTextFile(`${memoActualNombre}.doc`, html, "application/msword;charset=utf-8");
+  toast("Word descargado");
+}
+
+function printMemoPdf() {
+  if (!memoActualHtml) {
+    toast("Primero genera una ayudamemoria", "error");
+    return;
+  }
+  const win = window.open("", "_blank");
+  if (!win) {
+    toast("El navegador bloqueó la ventana de impresión", "error");
+    return;
+  }
+  win.document.write(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>${escapeHtml(memoActualNombre)}</title>
+  <style>
+    body { font-family: Arial, sans-serif; color: #111827; margin: 24px; }
+    h1 { text-align: center; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #999; padding: 8px; vertical-align: top; }
+    img { max-width: 100%; height: auto; }
+    .memo-header-table td { width: 50%; }
+    .memo-info-table th { width: 28%; background: #eef1f6; text-align: left; }
+    .memo-section { margin-top: 18px; }
+    .memo-figure { margin: 0 0 10px 0; }
+    .memo-figure img { max-width: 320px; }
+    .memo-empty-image { color: #6b7280; border: 1px dashed #aaa; padding: 20px; text-align: center; }
+  </style>
+</head>
+<body>${memoActualHtml}</body>
+</html>`);
+  win.document.close();
+  win.focus();
+  setTimeout(() => win.print(), 500);
+}
 
 function setFilesLoading(isLoading) {
   elements.filesLoading.classList.toggle("oculto", !isLoading);
@@ -1047,7 +1377,7 @@ function renderActivityFiles() {
     article.className = "file-card";
     article.innerHTML = `
       <div class="file-thumb">
-        ${fileId && isImage ? `<img src="${assetUrl(fileId)}" alt="${escapeHtml(item.nombre_original || "imagen")}">` : `<span>${escapeHtml((item.tipo_mime || "archivo").split("/").pop() || "archivo")}</span>`}
+        ${fileId && isImage ? `<img data-file-thumb="${fileId}" alt="${escapeHtml(item.nombre_original || "imagen")}">` : `<span>${escapeHtml((item.tipo_mime || "archivo").split("/").pop() || "archivo")}</span>`}
       </div>
       <div class="file-info">
         <div class="file-meta">
@@ -1057,13 +1387,43 @@ function renderActivityFiles() {
         <strong>${escapeHtml(item.nombre_original || item.nombre_archivo || "Archivo")}</strong>
         ${item.descripcion ? `<p>${escapeHtml(item.descripcion)}</p>` : ""}
         <div class="card-actions">
-          ${fileId ? `<a class="btn btn-light" href="${assetUrl(fileId)}" target="_blank" rel="noopener">Ver</a>` : ""}
+          ${fileId ? `<button class="btn btn-light" data-file-action="view" data-file-id="${fileId}">Ver</button>` : ""}
           <button class="btn btn-danger" data-file-action="delete" data-id="${item.id}">Eliminar</button>
         </div>
       </div>
     `;
     elements.filesList.appendChild(article);
   });
+  hydrateFileThumbnails();
+}
+
+async function hydrateFileThumbnails() {
+  const images = elements.filesList.querySelectorAll("img[data-file-thumb]");
+  for (const img of images) {
+    const fileId = img.dataset.fileThumb;
+    try {
+      img.src = await assetDataUrl(fileId);
+    } catch (error) {
+      console.warn("No se pudo cargar miniatura", fileId, error);
+      img.replaceWith(Object.assign(document.createElement("span"), { textContent: "imagen" }));
+    }
+  }
+}
+
+async function openAssetFile(fileId) {
+  try {
+    const dataUrl = await assetDataUrl(fileId);
+    const win = window.open("", "_blank");
+    if (!win) {
+      toast("El navegador bloqueó la ventana del archivo", "error");
+      return;
+    }
+    win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Archivo</title><style>body{margin:0;display:grid;place-items:center;min-height:100vh;background:#111}img{max-width:96vw;max-height:96vh}</style></head><body><img src="${dataUrl}" alt="Archivo"></body></html>`);
+    win.document.close();
+  } catch (error) {
+    console.error(error);
+    toast(`No se pudo abrir el archivo: ${error.message}`, "error");
+  }
 }
 
 async function uploadToDirectus(file) {
@@ -1183,11 +1543,17 @@ function attachEvents() {
   elements.activityForm.addEventListener("submit", saveActivity);
   elements.btnClearActivity.addEventListener("click", resetActivityForm);
   elements.btnReloadActivities.addEventListener("click", loadActivitiesNested);
+  elements.btnExportReportCsv.addEventListener("click", exportReportCsv);
+  elements.btnExportReportExcel.addEventListener("click", exportReportExcel);
   elements.fileForm.addEventListener("submit", saveActivityFile);
   elements.btnClearFile.addEventListener("click", resetFileForm);
   elements.btnReloadFiles.addEventListener("click", loadActivityFiles);
   elements.btnCloseFiles.addEventListener("click", () => elements.filesDialog.close());
   elements.btnCloseFilesFooter.addEventListener("click", () => elements.filesDialog.close());
+  elements.btnCloseMemo.addEventListener("click", () => elements.memoDialog.close());
+  elements.btnCloseMemoFooter.addEventListener("click", () => elements.memoDialog.close());
+  elements.btnDownloadMemoWord.addEventListener("click", downloadMemoWord);
+  elements.btnPrintMemoPdf.addEventListener("click", printMemoPdf);
   elements.pasteZone.addEventListener("paste", handlePaste);
   elements.pasteZone.addEventListener("click", () => elements.pasteZone.focus());
   elements.archivoFile.addEventListener("change", () => {
@@ -1237,6 +1603,7 @@ function attachEvents() {
     if (!button) return;
     if (button.dataset.activityAction === "new") selectObligationForActivity(button.dataset.obligationId);
     if (button.dataset.activityAction === "files") openFilesManager(button.dataset.id);
+    if (button.dataset.activityAction === "memo") openMemo(button.dataset.id);
     if (button.dataset.activityAction === "edit") editActivity(button.dataset.id);
     if (button.dataset.activityAction === "delete") deleteActivity(button.dataset.id);
   });
@@ -1244,6 +1611,7 @@ function attachEvents() {
   elements.filesList.addEventListener("click", (event) => {
     const button = event.target.closest("button[data-file-action]");
     if (!button) return;
+    if (button.dataset.fileAction === "view") openAssetFile(button.dataset.fileId);
     if (button.dataset.fileAction === "delete") deleteActivityFile(button.dataset.id);
   });
 }

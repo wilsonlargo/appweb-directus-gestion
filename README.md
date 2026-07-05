@@ -1,61 +1,22 @@
-# AppWeb Directus Pro - Contratos, Informes, Actividades e Imágenes
+# AppWeb Directus Pro - Exportaciones con imágenes embebidas
 
-Aplicación web responsive conectada a Directus en:
+Versión ajustada para que las imágenes cargadas en actividades se usen de forma autenticada desde Directus y se incrusten como `data:image/...` dentro de la vista de ayudamemoria y del archivo Word.
 
-`http://100.105.113.77:8055`
+## Corrección incluida
 
-## Funcionalidades
-
-- Inicio de sesión con usuario y contraseña de Directus.
-- Prueba de conexión API.
-- Crear, editar, actualizar y eliminar contratos.
-- Crear, editar, actualizar y eliminar obligaciones por contrato.
-- Crear, editar, actualizar y eliminar informes mensuales por contrato.
-- Abrir un informe mensual y agregar actividades por cada obligación.
-- Crear, editar y eliminar actividades.
-- Subir imágenes/archivos por actividad.
-- Pegar capturas de pantalla con Ctrl + V.
-- Clasificar archivos como: encabezado, cuerpo, anexo o soporte.
-- Guardar descripción y orden de cada imagen.
+- Las miniaturas de imágenes en la interfaz ya no dependen de un `<img src="/assets/...">` sin autorización.
+- El botón **Ver** abre la imagen usando el token de sesión de la AppWeb.
+- La **Ayudamemoria** convierte las imágenes de encabezado y cuerpo a Base64 antes de generar el documento.
+- El archivo Word descargado incluye las imágenes embebidas, no solo enlaces externos.
 
 ## Uso
 
-1. Descomprime el ZIP.
-2. Abre la carpeta completa en VS Code.
-3. Clic derecho sobre `index.html` → `Open with Live Server`.
-4. Ingresa con tu usuario y contraseña de Directus.
+1. Abrir `index.html` con Live Server.
+2. Iniciar sesión con el usuario de Directus.
+3. Abrir Contratos → Informes → Abrir informe → Actividades.
+4. En una actividad, subir imágenes y clasificarlas como `encabezado` o `cuerpo`.
+5. Generar Ayudamemoria y descargar Word o imprimir como PDF.
 
-## Requisitos en Directus
+## URL Directus configurada
 
-El usuario debe tener permisos para estas colecciones:
-
-- `contratos`: read, create, update, delete.
-- `obligaciones`: read, create, update, delete.
-- `informes_mensuales`: read, create, update, delete.
-- `actividades`: read, create, update, delete.
-- `archivos_actividad`: read, create, update, delete.
-- `directus_files`: read, create, delete.
-
-Además, Directus debe tener CORS habilitado para la URL de Live Server.
-
-## Campos esperados en `archivos_actividad`
-
-- `id`
-- `actividad_id`
-- `nombre_original`
-- `nombre_archivo`
-- `ruta`
-- `tipo_mime`
-- `created_at`
-- `categoria`
-- `descripcion`
-- `orden`
-- `directus_file_id`
-
-## Almacenamiento
-
-Los archivos se suben a Directus usando `/files`. Directus los guarda en la carpeta persistente configurada en CasaOS, por ejemplo:
-
-`/media/casa/Datawil/AppData/directus/uploads`
-
-La tabla `archivos_actividad` guarda la referencia del archivo en `directus_file_id` y su clasificación para futuros documentos PDF/ayudamemoria.
+`http://100.105.113.77:8055`
