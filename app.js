@@ -1,43 +1,347 @@
-const DEFAULT_DIRECTUS_URL = "http://100.105.113.77:8055";
-let directusUrl = localStorage.getItem("directus_url") || DEFAULT_DIRECTUS_URL;
-let accessToken = localStorage.getItem("directus_token") || "";
-const $ = (id) => document.getElementById(id);
-const directusUrlInput = $("directusUrl");
-const configMensaje = $("configMensaje");
-const loginMensaje = $("loginMensaje");
-const appMensaje = $("appMensaje");
-directusUrlInput.value = directusUrl;
-function setMensaje(elemento, texto, tipo = "ok") { elemento.textContent = texto; elemento.className = `mensaje ${tipo}`; if (texto) setTimeout(() => { elemento.textContent = ""; elemento.className = "mensaje"; }, 4500); }
-function apiUrl(path) { return `${directusUrl.replace(/\/$/, "")}${path}`; }
-async function directusFetch(path, options = {}) { const headers = { ...(options.headers || {}) }; if (!(options.body instanceof FormData)) headers["Content-Type"] = headers["Content-Type"] || "application/json"; if (accessToken) headers.Authorization = `Bearer ${accessToken}`; const response = await fetch(apiUrl(path), { ...options, headers }); const text = await response.text(); let data = null; try { data = text ? JSON.parse(text) : null; } catch { data = { raw: text }; } if (!response.ok) { const message = data?.errors?.[0]?.message || data?.message || `Error HTTP ${response.status}`; throw new Error(message); } return data; }
-function mostrarApp() { $("loginBox").classList.add("oculto"); $("appBox").classList.remove("oculto"); $("btnLogout").classList.remove("oculto"); cargarTodo(); }
-function mostrarLogin() { $("loginBox").classList.remove("oculto"); $("appBox").classList.add("oculto"); $("btnLogout").classList.add("oculto"); }
-function fechaCorta(valor) { if (!valor) return ""; return String(valor).slice(0, 10); }
-function contratoLabel(c) { if (!c) return ""; return `${c.numero_contrato || "Sin número"}${c.entidad ? " - " + c.entidad : ""}`; }
-function informeLabel(i) { if (!i) return ""; const contrato = typeof i.contrato_id === "object" ? contratoLabel(i.contrato_id) : i.contrato_id; return `${i.anio || ""}/${i.mes || ""}${contrato ? " - " + contrato : ""}`; }
-async function probarApi() { try { await directusFetch("/server/ping", { headers: {} }); setMensaje(configMensaje, "Directus responde correctamente."); } catch (error) { console.error(error); setMensaje(configMensaje, "No se pudo conectar con Directus. Revisa URL, red o CORS.", "error"); } }
-async function login() { const email = $("email").value.trim(); const password = $("password").value; if (!email || !password) { setMensaje(loginMensaje, "Escribe correo y contraseña.", "error"); return; } try { setMensaje(loginMensaje, "Ingresando..."); const result = await directusFetch("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }); accessToken = result.data.access_token; localStorage.setItem("directus_token", accessToken); setMensaje(loginMensaje, ""); mostrarApp(); } catch (error) { console.error(error); setMensaje(loginMensaje, "No se pudo iniciar sesión. Revisa usuario, contraseña o permisos.", "error"); } }
-function logout() { accessToken = ""; localStorage.removeItem("directus_token"); mostrarLogin(); }
-async function cargarContratos() { const result = await directusFetch("/items/contratos?sort=-created_at&fields=id,numero_contrato,objeto,entidad,contratista,supervisor,fecha_inicio,fecha_fin"); const contratos = result.data || []; const tbody = $("tablaContratos"); tbody.innerHTML = ""; contratos.forEach((c) => { const tr = document.createElement("tr"); tr.innerHTML = `<td>${c.numero_contrato || ""}</td><td>${c.entidad || ""}</td><td>${c.contratista || ""}</td><td>${c.supervisor || ""}</td><td>${fechaCorta(c.fecha_inicio)} / ${fechaCorta(c.fecha_fin)}</td><td><button class="btn-mini" data-editar-contrato="${c.id}">Editar</button></td>`; tr.dataset.contrato = JSON.stringify(c); tbody.appendChild(tr); }); llenarSelectContratos(contratos); return contratos; }
-function llenarSelectContratos(contratos) { [$("obligacion_contrato_id"), $("informe_contrato_id")].forEach((select) => { const actual = select.value; select.innerHTML = `<option value="">Seleccione contrato...</option>`; contratos.forEach((c) => { const opt = document.createElement("option"); opt.value = c.id; opt.textContent = contratoLabel(c); select.appendChild(opt); }); select.value = actual; }); }
-async function guardarContrato(event) { event.preventDefault(); const idEdit = $("contrato_id_edit").value; const payload = { numero_contrato: $("numero_contrato").value.trim(), objeto: $("objeto").value.trim() || null, entidad: $("entidad").value.trim() || null, contratista: $("contratista").value.trim() || null, supervisor: $("supervisor").value.trim() || null, fecha_inicio: $("fecha_inicio").value || null, fecha_fin: $("fecha_fin").value || null }; if (!payload.numero_contrato) { setMensaje(appMensaje, "El número de contrato es obligatorio.", "error"); return; } await directusFetch(idEdit ? `/items/contratos/${idEdit}` : "/items/contratos", { method: idEdit ? "PATCH" : "POST", body: JSON.stringify(payload) }); $("formContrato").reset(); $("contrato_id_edit").value = ""; await cargarContratos(); setMensaje(appMensaje, idEdit ? "Contrato actualizado." : "Contrato creado."); }
-function limpiarContrato() { $("formContrato").reset(); $("contrato_id_edit").value = ""; }
-function editarContratoDesdeTabla(event) { const btn = event.target.closest("[data-editar-contrato]"); if (!btn) return; const c = JSON.parse(btn.closest("tr").dataset.contrato); $("contrato_id_edit").value = c.id; $("numero_contrato").value = c.numero_contrato || ""; $("objeto").value = c.objeto || ""; $("entidad").value = c.entidad || ""; $("contratista").value = c.contratista || ""; $("supervisor").value = c.supervisor || ""; $("fecha_inicio").value = fechaCorta(c.fecha_inicio); $("fecha_fin").value = fechaCorta(c.fecha_fin); document.querySelector("[data-tab='contratos']").click(); window.scrollTo({ top: 0, behavior: "smooth" }); }
-async function cargarObligaciones() { const result = await directusFetch("/items/obligaciones?sort=numero&fields=id,numero,descripcion,contrato_id.id,contrato_id.numero_contrato,contrato_id.entidad"); const obligaciones = result.data || []; const tbody = $("tablaObligaciones"); tbody.innerHTML = ""; obligaciones.forEach((o) => { const tr = document.createElement("tr"); tr.innerHTML = `<td>${contratoLabel(o.contrato_id)}</td><td>${o.numero || ""}</td><td>${o.descripcion || ""}</td>`; tbody.appendChild(tr); }); llenarSelectObligaciones(obligaciones); return obligaciones; }
-function llenarSelectObligaciones(obligaciones) { const select = $("actividad_obligacion_id"); const actual = select.value; select.innerHTML = `<option value="">Sin obligación específica</option>`; obligaciones.forEach((o) => { const opt = document.createElement("option"); opt.value = o.id; opt.textContent = `Obligación ${o.numero || ""} - ${contratoLabel(o.contrato_id)}`; select.appendChild(opt); }); select.value = actual; }
-async function guardarObligacion(event) { event.preventDefault(); const payload = { contrato_id: $("obligacion_contrato_id").value, numero: Number($("obligacion_numero").value), descripcion: $("obligacion_descripcion").value.trim() }; await directusFetch("/items/obligaciones", { method: "POST", body: JSON.stringify(payload) }); $("formObligacion").reset(); await cargarObligaciones(); setMensaje(appMensaje, "Obligación creada."); }
-async function cargarInformes() { const result = await directusFetch("/items/informes_mensuales?sort=-anio,-mes&fields=id,anio,mes,estado,contrato_id.id,contrato_id.numero_contrato,contrato_id.entidad"); const informes = result.data || []; const tbody = $("tablaInformes"); tbody.innerHTML = ""; informes.forEach((i) => { const tr = document.createElement("tr"); tr.innerHTML = `<td>${contratoLabel(i.contrato_id)}</td><td>${i.anio || ""}</td><td>${i.mes || ""}</td><td>${i.estado || ""}</td>`; tbody.appendChild(tr); }); llenarSelectInformes(informes); return informes; }
-function llenarSelectInformes(informes) { const select = $("actividad_informe_id"); const actual = select.value; select.innerHTML = `<option value="">Seleccione informe...</option>`; informes.forEach((i) => { const opt = document.createElement("option"); opt.value = i.id; opt.textContent = informeLabel(i); select.appendChild(opt); }); select.value = actual; }
-async function guardarInforme(event) { event.preventDefault(); const payload = { contrato_id: $("informe_contrato_id").value, anio: Number($("informe_anio").value), mes: Number($("informe_mes").value), estado: $("informe_estado").value || "borrador" }; await directusFetch("/items/informes_mensuales", { method: "POST", body: JSON.stringify(payload) }); $("formInforme").reset(); $("informe_anio").value = "2026"; $("informe_estado").value = "borrador"; await cargarInformes(); setMensaje(appMensaje, "Informe mensual creado."); }
-async function cargarActividades() { const result = await directusFetch("/items/actividades?sort=-fecha_actividad&fields=id,codigo,fecha_actividad,titulo,descripcion,tipo_actividad,lugar,entidades,informe_id.id,informe_id.anio,informe_id.mes,informe_id.contrato_id.numero_contrato,informe_id.contrato_id.entidad"); const actividades = result.data || []; const tbody = $("tablaActividades"); tbody.innerHTML = ""; actividades.forEach((a) => { const tr = document.createElement("tr"); tr.innerHTML = `<td>${informeLabel(a.informe_id)}</td><td>${fechaCorta(a.fecha_actividad)}</td><td>${a.titulo || ""}</td><td>${a.descripcion || ""}</td>`; tbody.appendChild(tr); }); return actividades; }
-async function guardarActividad(event) { event.preventDefault(); const payload = { informe_id: $("actividad_informe_id").value, obligacion_id: $("actividad_obligacion_id").value || null, codigo: $("actividad_codigo").value.trim() || null, fecha_actividad: $("actividad_fecha").value || null, titulo: $("actividad_titulo").value.trim() || null, descripcion: $("actividad_descripcion").value.trim(), tipo_actividad: $("actividad_tipo").value.trim() || null, lugar: $("actividad_lugar").value.trim() || null, entidades: $("actividad_entidades").value.trim() || null, observaciones: $("actividad_observaciones").value.trim() || null }; await directusFetch("/items/actividades", { method: "POST", body: JSON.stringify(payload) }); $("formActividad").reset(); await cargarActividades(); setMensaje(appMensaje, "Actividad creada."); }
-async function cargarTodo() { try { await cargarContratos(); await cargarObligaciones(); await cargarInformes(); await cargarActividades(); } catch (error) { console.error(error); setMensaje(appMensaje, `Error cargando datos: ${error.message}`, "error"); } }
-function cambiarTab(event) { const btn = event.target.closest(".tab"); if (!btn) return; document.querySelectorAll(".tab").forEach((t) => t.classList.remove("activa")); document.querySelectorAll(".panel").forEach((p) => p.classList.remove("activo")); btn.classList.add("activa"); $(`tab-${btn.dataset.tab}`).classList.add("activo"); }
-$("btnGuardarConfig").addEventListener("click", () => { directusUrl = directusUrlInput.value.trim().replace(/\/$/, ""); localStorage.setItem("directus_url", directusUrl); setMensaje(configMensaje, "Configuración guardada."); });
-$("btnProbarApi").addEventListener("click", probarApi); $("btnLogin").addEventListener("click", login); $("btnLogout").addEventListener("click", logout);
-$("formContrato").addEventListener("submit", (e) => guardarContrato(e).catch((err) => { console.error(err); setMensaje(appMensaje, `Error guardando contrato: ${err.message}`, "error"); }));
-$("formObligacion").addEventListener("submit", (e) => guardarObligacion(e).catch((err) => { console.error(err); setMensaje(appMensaje, `Error guardando obligación: ${err.message}`, "error"); }));
-$("formInforme").addEventListener("submit", (e) => guardarInforme(e).catch((err) => { console.error(err); setMensaje(appMensaje, `Error guardando informe: ${err.message}`, "error"); }));
-$("formActividad").addEventListener("submit", (e) => guardarActividad(e).catch((err) => { console.error(err); setMensaje(appMensaje, `Error guardando actividad: ${err.message}`, "error"); }));
-$("btnLimpiarContrato").addEventListener("click", limpiarContrato); $("btnCargarContratos").addEventListener("click", () => cargarContratos().catch(console.error)); $("btnCargarObligaciones").addEventListener("click", () => cargarObligaciones().catch(console.error)); $("btnCargarInformes").addEventListener("click", () => cargarInformes().catch(console.error)); $("btnCargarActividades").addEventListener("click", () => cargarActividades().catch(console.error)); $("tablaContratos").addEventListener("click", editarContratoDesdeTabla); document.querySelector(".tabs").addEventListener("click", cambiarTab);
-if (accessToken) mostrarApp(); else mostrarLogin();
+const DIRECTUS_URL = "http://100.105.113.77:8055";
+
+let accessToken = localStorage.getItem("directus_access_token") || "";
+let refreshToken = localStorage.getItem("directus_refresh_token") || "";
+let contratos = [];
+
+const $ = (selector) => document.querySelector(selector);
+
+const elements = {
+  toast: $("#toast"),
+  loginView: $("#loginView"),
+  appView: $("#appView"),
+  loginForm: $("#loginForm"),
+  loginEmail: $("#loginEmail"),
+  loginPassword: $("#loginPassword"),
+  loginMessage: $("#loginMessage"),
+  btnTestApi: $("#btnTestApi"),
+  directusUrlText: $("#directusUrlText"),
+  btnLogout: $("#btnLogout"),
+  btnRefresh: $("#btnRefresh"),
+  btnNewContract: $("#btnNewContract"),
+  btnMenu: $("#btnMenu"),
+  sidebar: $("#sidebar"),
+  contractsTable: $("#contractsTable"),
+  searchInput: $("#searchInput"),
+  loadingBox: $("#loadingBox"),
+  emptyState: $("#emptyState"),
+  contractDialog: $("#contractDialog"),
+  contractForm: $("#contractForm"),
+  dialogTitle: $("#dialogTitle"),
+  btnCloseDialog: $("#btnCloseDialog"),
+  btnCancel: $("#btnCancel"),
+  contractId: $("#contractId"),
+  statContratos: $("#statContratos"),
+  statConFechaFin: $("#statConFechaFin"),
+  statSinFechaFin: $("#statSinFechaFin"),
+  pageTitle: $("#pageTitle"),
+  pageSubtitle: $("#pageSubtitle"),
+};
+
+const fields = {
+  numero_contrato: $("#numero_contrato"),
+  objeto: $("#objeto"),
+  entidad: $("#entidad"),
+  contratista: $("#contratista"),
+  supervisor: $("#supervisor"),
+  fecha_inicio: $("#fecha_inicio"),
+  fecha_fin: $("#fecha_fin"),
+};
+
+elements.directusUrlText.textContent = DIRECTUS_URL;
+
+function toast(message, type = "ok") {
+  elements.toast.textContent = message;
+  elements.toast.className = `toast ${type === "error" ? "error" : ""}`;
+  elements.toast.classList.remove("oculto");
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => elements.toast.classList.add("oculto"), 3200);
+}
+
+function setLoading(isLoading) {
+  elements.loadingBox.classList.toggle("oculto", !isLoading);
+}
+
+function showApp() {
+  elements.loginView.classList.add("oculto");
+  elements.appView.classList.remove("oculto");
+  loadContracts();
+}
+
+function showLogin() {
+  elements.appView.classList.add("oculto");
+  elements.loginView.classList.remove("oculto");
+}
+
+function saveTokens(data) {
+  accessToken = data.access_token || "";
+  refreshToken = data.refresh_token || "";
+  localStorage.setItem("directus_access_token", accessToken);
+  if (refreshToken) localStorage.setItem("directus_refresh_token", refreshToken);
+}
+
+function clearTokens() {
+  accessToken = "";
+  refreshToken = "";
+  localStorage.removeItem("directus_access_token");
+  localStorage.removeItem("directus_refresh_token");
+}
+
+async function api(path, options = {}) {
+  const headers = new Headers(options.headers || {});
+  if (!headers.has("Content-Type") && options.body) headers.set("Content-Type", "application/json");
+  if (accessToken) headers.set("Authorization", `Bearer ${accessToken}`);
+
+  const response = await fetch(`${DIRECTUS_URL}${path}`, { ...options, headers });
+  const text = await response.text();
+  let payload = null;
+  if (text) {
+    try { payload = JSON.parse(text); } catch { payload = text; }
+  }
+
+  if (!response.ok) {
+    const message = payload?.errors?.[0]?.message || payload?.message || `Error HTTP ${response.status}`;
+    throw new Error(message);
+  }
+
+  return payload;
+}
+
+async function testApi() {
+  elements.loginMessage.textContent = "Probando conexión...";
+  try {
+    const response = await fetch(`${DIRECTUS_URL}/server/ping`);
+    if (!response.ok) throw new Error("No respondió correctamente");
+    elements.loginMessage.textContent = "API conectada correctamente.";
+  } catch (error) {
+    console.error(error);
+    elements.loginMessage.textContent = "No se pudo conectar con Directus. Revisa URL, red o CORS.";
+  }
+}
+
+async function login(event) {
+  event.preventDefault();
+  elements.loginMessage.textContent = "Ingresando...";
+
+  try {
+    const response = await fetch(`${DIRECTUS_URL}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: elements.loginEmail.value.trim(),
+        password: elements.loginPassword.value,
+      }),
+    });
+
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload?.errors?.[0]?.message || "No se pudo iniciar sesión");
+
+    saveTokens(payload.data);
+    elements.loginMessage.textContent = "";
+    toast("Sesión iniciada");
+    showApp();
+  } catch (error) {
+    console.error(error);
+    elements.loginMessage.textContent = "No se pudo iniciar sesión. Revisa usuario, contraseña o permisos.";
+  }
+}
+
+function logout() {
+  clearTokens();
+  contratos = [];
+  renderContracts();
+  showLogin();
+  toast("Sesión cerrada");
+}
+
+function dateShort(value) {
+  if (!value) return "";
+  return String(value).slice(0, 10);
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+async function loadContracts() {
+  setLoading(true);
+  try {
+    const params = new URLSearchParams({
+      sort: "-created_at",
+      fields: "id,numero_contrato,objeto,entidad,contratista,supervisor,fecha_inicio,fecha_fin,created_at",
+      limit: "200",
+    });
+    const payload = await api(`/items/contratos?${params.toString()}`);
+    contratos = payload.data || [];
+    renderContracts();
+    updateStats();
+  } catch (error) {
+    console.error(error);
+    toast(`Error cargando contratos: ${error.message}`, "error");
+  } finally {
+    setLoading(false);
+  }
+}
+
+function getFilteredContracts() {
+  const query = elements.searchInput.value.trim().toLowerCase();
+  if (!query) return contratos;
+  return contratos.filter((item) => [
+    item.numero_contrato,
+    item.entidad,
+    item.contratista,
+    item.supervisor,
+    item.objeto,
+  ].some((value) => String(value || "").toLowerCase().includes(query)));
+}
+
+function renderContracts() {
+  const data = getFilteredContracts();
+  elements.contractsTable.innerHTML = "";
+  elements.emptyState.classList.toggle("oculto", data.length > 0);
+
+  data.forEach((item) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td><span class="badge">${escapeHtml(item.numero_contrato || "Sin número")}</span></td>
+      <td>${escapeHtml(item.entidad || "")}<div class="muted">${escapeHtml(item.objeto || "")}</div></td>
+      <td>${escapeHtml(item.contratista || "")}</td>
+      <td>${escapeHtml(item.supervisor || "")}</td>
+      <td>${escapeHtml(dateShort(item.fecha_inicio))}<br><span class="muted">${escapeHtml(dateShort(item.fecha_fin))}</span></td>
+      <td class="actions">
+        <button class="btn btn-light" data-action="edit" data-id="${item.id}">Editar</button>
+        <button class="btn btn-danger" data-action="delete" data-id="${item.id}">Eliminar</button>
+      </td>
+    `;
+    elements.contractsTable.appendChild(tr);
+  });
+}
+
+function updateStats() {
+  elements.statContratos.textContent = contratos.length;
+  elements.statConFechaFin.textContent = contratos.filter((c) => c.fecha_fin).length;
+  elements.statSinFechaFin.textContent = contratos.filter((c) => !c.fecha_fin).length;
+}
+
+function openNewContract() {
+  elements.dialogTitle.textContent = "Nuevo contrato";
+  elements.contractForm.reset();
+  elements.contractId.value = "";
+  elements.contractDialog.showModal();
+}
+
+function openEditContract(id) {
+  const item = contratos.find((c) => c.id === id);
+  if (!item) return;
+
+  elements.dialogTitle.textContent = `Editar contrato ${item.numero_contrato || ""}`;
+  elements.contractId.value = item.id;
+  fields.numero_contrato.value = item.numero_contrato || "";
+  fields.objeto.value = item.objeto || "";
+  fields.entidad.value = item.entidad || "";
+  fields.contratista.value = item.contratista || "";
+  fields.supervisor.value = item.supervisor || "";
+  fields.fecha_inicio.value = dateShort(item.fecha_inicio);
+  fields.fecha_fin.value = dateShort(item.fecha_fin);
+  elements.contractDialog.showModal();
+}
+
+function collectContractForm() {
+  return {
+    numero_contrato: fields.numero_contrato.value.trim(),
+    objeto: fields.objeto.value.trim() || null,
+    entidad: fields.entidad.value.trim() || null,
+    contratista: fields.contratista.value.trim() || null,
+    supervisor: fields.supervisor.value.trim() || null,
+    fecha_inicio: fields.fecha_inicio.value || null,
+    fecha_fin: fields.fecha_fin.value || null,
+  };
+}
+
+async function saveContract(event) {
+  event.preventDefault();
+
+  const id = elements.contractId.value;
+  const body = collectContractForm();
+  if (!body.numero_contrato) {
+    toast("El número de contrato es obligatorio", "error");
+    return;
+  }
+
+  try {
+    if (id) {
+      await api(`/items/contratos/${id}`, { method: "PATCH", body: JSON.stringify(body) });
+      toast("Contrato actualizado");
+    } else {
+      await api("/items/contratos", { method: "POST", body: JSON.stringify(body) });
+      toast("Contrato creado");
+    }
+    elements.contractDialog.close();
+    await loadContracts();
+  } catch (error) {
+    console.error(error);
+    toast(`No se pudo guardar: ${error.message}`, "error");
+  }
+}
+
+async function deleteContract(id) {
+  const item = contratos.find((c) => c.id === id);
+  const label = item?.numero_contrato || id;
+  const ok = confirm(`¿Eliminar el contrato ${label}? Esta acción puede fallar si tiene obligaciones o informes asociados.`);
+  if (!ok) return;
+
+  try {
+    await api(`/items/contratos/${id}`, { method: "DELETE" });
+    toast("Contrato eliminado");
+    await loadContracts();
+  } catch (error) {
+    console.error(error);
+    toast(`No se pudo eliminar: ${error.message}`, "error");
+  }
+}
+
+function switchView(view) {
+  document.querySelectorAll(".nav-item").forEach((btn) => btn.classList.toggle("activo", btn.dataset.view === view));
+  $("#contratosView").classList.toggle("oculto", view !== "contratos");
+  $("#resumenView").classList.toggle("oculto", view !== "resumen");
+  elements.pageTitle.textContent = view === "contratos" ? "Contratos" : "Resumen";
+  elements.pageSubtitle.textContent = view === "contratos"
+    ? "Crea, consulta y edita contratos desde la AppWeb."
+    : "Indicadores rápidos de los contratos cargados.";
+  if (window.innerWidth <= 820) elements.sidebar.classList.remove("abierto");
+}
+
+function attachEvents() {
+  elements.btnTestApi.addEventListener("click", testApi);
+  elements.loginForm.addEventListener("submit", login);
+  elements.btnLogout.addEventListener("click", logout);
+  elements.btnRefresh.addEventListener("click", loadContracts);
+  elements.btnNewContract.addEventListener("click", openNewContract);
+  elements.btnCloseDialog.addEventListener("click", () => elements.contractDialog.close());
+  elements.btnCancel.addEventListener("click", () => elements.contractDialog.close());
+  elements.contractForm.addEventListener("submit", saveContract);
+  elements.searchInput.addEventListener("input", renderContracts);
+  elements.btnMenu.addEventListener("click", () => elements.sidebar.classList.toggle("abierto"));
+
+  document.querySelectorAll(".nav-item").forEach((btn) => {
+    btn.addEventListener("click", () => switchView(btn.dataset.view));
+  });
+
+  elements.contractsTable.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-action]");
+    if (!button) return;
+    const id = button.dataset.id;
+    if (button.dataset.action === "edit") openEditContract(id);
+    if (button.dataset.action === "delete") deleteContract(id);
+  });
+}
+
+attachEvents();
+
+if (accessToken) showApp();
+else showLogin();
